@@ -35,11 +35,11 @@ contract("Stress test staking", function(accounts) {
         await contract.stake(stake, true, {from: staker})
 
         //*** Move 100 periods (4 years)
-        var period = (await contract.compoundingPeriod.call()).mul(web3.utils.toBN('100'))
+        var period = (await contract.interestPeriod.call()).mul(web3.utils.toBN('100'))
 
         var interestDate = (await contract.stakeholders.call(staker)).interestDate
         var stakingBalance = (await contract.stakeholders.call(staker)).stakingBalance
-        var compoundingPeriod = await contract.compoundingPeriod.call()
+        var interestPeriod = await contract.interestPeriod.call()
         var interestDecimals = await contract.interestDecimals.call()
         var interestRate = await contract.baseInterest.call()
 
@@ -55,12 +55,12 @@ contract("Stress test staking", function(accounts) {
         console.log(compoundedInterestRate.toString())
 
         var newBalance = stakingBalance.div(interestDecimals).mul(compoundedInterestRate)
-        var newInterestDate = interestDate.add((await contract.compoundingPeriod.call()).mul(web3.utils.toBN('100')))
+        var newInterestDate = interestDate.add((await contract.interestPeriod.call()).mul(web3.utils.toBN('100')))
 
         // Compare balance after claiming
         // 4 decimals are applied (1 ENV is lost a year with on 10.000 ENV staked)
-        assert.equal(newBalance.div(web3.utils.toBN(10**14)).toString(),
-            (await contract.stakeholders.call(staker)).stakingBalance.div(web3.utils.toBN(10**14)).toString(),
+        assert.equal(newBalance.div(web3.utils.toBN(10**12)).toString(),
+            (await contract.stakeholders.call(staker)).stakingBalance.div(web3.utils.toBN(10**12)).toString(),
             "Staking reward not updated correctly")
 
         assert.equal(newInterestDate.toString(), (await contract.stakeholders.call(staker)).interestDate.toString(),

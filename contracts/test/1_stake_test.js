@@ -48,19 +48,19 @@ contract("Test staking", function(accounts) {
 
         var interestDate = (await contract.stakeholders.call(staker)).interestDate
         var stakingBalance = (await contract.stakeholders.call(staker)).stakingBalance
-        var compoundingPeriod = await contract.compoundingPeriod.call()
+        var interestPeriod = await contract.interestPeriod.call()
         var interestDecimals = await contract.interestDecimals.call()
         var interestRate = await contract.baseInterest.call()
 
         // Move in time
         currentTime = await truffleHelpers.time.latest();
-        await truffleHelpers.time.increase(truffleHelpers.time.duration.seconds((await contract.compoundingPeriod.call())));
+        await truffleHelpers.time.increase(truffleHelpers.time.duration.seconds((await contract.interestPeriod.call())));
         // Claim rewards on chain
         await contract.claimRewards(false, {from: staker})
         
         // Calculate the interest off-chain
         var newBalance = stakingBalance.div(interestDecimals).mul(interestRate.add(web3.utils.toBN(interestDecimals)))
-        var newInterestDate = interestDate.add(await contract.compoundingPeriod.call())
+        var newInterestDate = interestDate.add(await contract.interestPeriod.call())
 
         // Compare balance after claiming
         assert.equal(newBalance.toString(), (await contract.stakeholders.call(staker)).stakingBalance.toString(),
@@ -74,7 +74,7 @@ contract("Test staking", function(accounts) {
         //*** Move 1.5 compounding period. Verify that:
         // - 1 period was rewarded
         // - 0.5 period is left for next compounding period
-        var oneAndHalfPeriod = (await contract.compoundingPeriod.call()).mul(web3.utils.toBN('3')).div(web3.utils.toBN('2'))
+        var oneAndHalfPeriod = (await contract.interestPeriod.call()).mul(web3.utils.toBN('3')).div(web3.utils.toBN('2'))
 
         interestDate = (await contract.stakeholders.call(staker)).interestDate
         stakingBalance = (await contract.stakeholders.call(staker)).stakingBalance
@@ -88,7 +88,7 @@ contract("Test staking", function(accounts) {
         
         // Calculate the interest off-chain
         var newBalance = stakingBalance.div(interestDecimals).mul(interestRate.add(web3.utils.toBN(interestDecimals)))
-        var newInterestDate = interestDate.add(await contract.compoundingPeriod.call())
+        var newInterestDate = interestDate.add(await contract.interestPeriod.call())
 
         // Compare balance after claiming
         assert.equal(newBalance.toString(), (await contract.stakeholders.call(staker)).stakingBalance.toString(),
@@ -101,7 +101,7 @@ contract("Test staking", function(accounts) {
         //*** Move 22.3 compounding periods (approx year). Verify that:
         // - 22 period were rewarded
         // - 3 period is left for next compounding period
-        var twentyPointOnePeriod = (await contract.compoundingPeriod.call()).mul(web3.utils.toBN('22')).div(web3.utils.toBN('1'))
+        var twentyPointOnePeriod = (await contract.interestPeriod.call()).mul(web3.utils.toBN('22')).div(web3.utils.toBN('1'))
 
         interestDate = (await contract.stakeholders.call(staker)).interestDate
         stakingBalance = (await contract.stakeholders.call(staker)).stakingBalance
@@ -118,12 +118,12 @@ contract("Test staking", function(accounts) {
         console.log(compoundedInterestRate.toString())
 
         var newBalance = stakingBalance.div(interestDecimals).mul(compoundedInterestRate)
-        var newInterestDate = interestDate.add((await contract.compoundingPeriod.call()).mul(web3.utils.toBN('22')))
+        var newInterestDate = interestDate.add((await contract.interestPeriod.call()).mul(web3.utils.toBN('22')))
 
         // Compare balance after claiming
         // 4 decimals are applied (1 ENV is lost a year with on 10.000 ENV staked)
-        assert.equal(newBalance.div(web3.utils.toBN(10**14)).toString(),
-            (await contract.stakeholders.call(staker)).stakingBalance.div(web3.utils.toBN(10**14)).toString(),
+        assert.equal(newBalance.div(web3.utils.toBN(10**8)).toString(),
+            (await contract.stakeholders.call(staker)).stakingBalance.div(web3.utils.toBN(10**8)).toString(),
             "Staking reward not updated correctly")
 
         assert.equal(newInterestDate.toString(), (await contract.stakeholders.call(staker)).interestDate.toString(),

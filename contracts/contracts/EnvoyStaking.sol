@@ -29,29 +29,38 @@ contract EnvoyStaking is Ownable {
 
     uint public cooldown = 2 days;
     
-    address wallet;
     address signatureAddress;
 
     IERC20 stakingToken;
 
     uint public interestDecimals = 1000000000000;
-    uint public baseInterest = 3924000000;
-    uint public extraInterest = 39240000000; //10% per year
-    uint public compoundingPeriod = 15 days;
+    uint public baseInterest = 4000000000;
+    uint public extraInterest = 400000000; //10% per year
+    uint public interestPeriod = 15 days;
 
     constructor(address signatureAddress_, address stakingTokenAddress) {
-        wallet = _msgSender();
         signatureAddress = signatureAddress_;
         stakingToken = IERC20(stakingTokenAddress);
     }
 
-
-    function updateWallet(address wallet_) public onlyOwner {
-        wallet = wallet_; 
+    function updateSignatureAddress(address value) public onlyOwner {
+        signatureAddress = value; 
     }
 
-    function updateSignatureAddress(address signatureAddress_) public onlyOwner {
-        signatureAddress = signatureAddress_; 
+    function updateInterestDecimals(uint value) public onlyOwner{
+        interestDecimals = value;
+    }
+
+    function updateBaseInterest(uint value) public onlyOwner{
+        baseInterest = value;
+    }
+
+    function updateExtraInterest(uint value) public onlyOwner{
+        extraInterest = value;
+    }
+
+    function updateInterestPeriod(uint value) public onlyOwner{
+        interestPeriod = value;
     }
 
     function updateWeight(uint weight_, bytes memory signature, bool instant) public{
@@ -60,12 +69,17 @@ contract EnvoyStaking is Ownable {
             "Signature of the input was not signed by 'signatureAddress'");
 
         StakeHolder storage stakeholder = stakeholders[sender];
+
+        claimRewards(false);
         if(instant){
-            claimRewards(false);
             stakeholder.interestDate = block.timestamp;
             stakeholder.weight = weight_;
         } else {
             stakeholder.newWeight = weight_;
+        }
+
+        if(weight_ > maxWeight){
+            maxWeight = weight_;
         }
     }
 
@@ -79,12 +93,11 @@ contract EnvoyStaking is Ownable {
 
         StakeHolder storage stakeholder = stakeholders[sender];
 
+        claimRewards(false);
         if(instant){
-            claimRewards(false);
             stakeholder.interestDate = block.timestamp;
             stakeholder.stakingBalance += amount;
         } else {
-            claimRewards(false);
             stakeholder.newStake = amount;
         }
 
@@ -108,6 +121,9 @@ contract EnvoyStaking is Ownable {
         }
         stakingToken.transfer(sender, stakeholder.stakingBalance);
 
+        stakeholder.interestDate = block.timestamp;
+        stakeholder.stakingBalance -= amount;
+
         totalStake -= amount;
     }
 
@@ -121,7 +137,7 @@ contract EnvoyStaking is Ownable {
 
         
         // Number of accounts for which rewards will be paid
-        uint n = (block.timestamp-stakeholder.interestDate) / compoundingPeriod;
+        uint n = (block.timestamp-stakeholder.interestDate) / interestPeriod;
 
         if (stakeholder.stakingBalance == 0 || n == 0){
             return 0;
@@ -132,7 +148,7 @@ contract EnvoyStaking is Ownable {
             // - first calculate rewards on the first compounding period with the old values
             // - set the new values to use in the computation of the following compounding periods
             stakeholder.stakingBalance += stakeholder.stakingBalance * (baseInterest + extraInterest * stakeholder.weight);
-            stakeholder.interestDate += compoundingPeriod;
+            stakeholder.interestDate += interestPeriod;
 
             if(stakeholder.newWeight > 0){
                 stakeholder.weight = stakeholder.newWeight;
@@ -144,7 +160,7 @@ contract EnvoyStaking is Ownable {
                 stakeholder.newStake = 0;
             }
 
-            stakeholder.interestDate += compoundingPeriod;
+            stakeholder.interestDate += interestPeriod;
             
             // One period was already rewarded
             n-=1;
@@ -152,7 +168,7 @@ contract EnvoyStaking is Ownable {
         }
 
         // Update the timestamp of the timestamp for the staking period that was not rewarded yet
-        stakeholder.interestDate += (n * compoundingPeriod);
+        stakeholder.interestDate += (n * interestPeriod);
 
         uint s = stakeholder.stakingBalance;
         uint r = baseInterest + extraInterest * stakeholder.weight;
