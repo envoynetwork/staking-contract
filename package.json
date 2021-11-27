@@ -1,0 +1,30 @@
+{
+  "name": "envoy-staking",
+  "version": "1.0.0",
+  "description": "Envoy token staking contract",
+  "main": "index.js",
+  "scripts": {
+    "test": "cd contracts && truffle test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/envoynetwork/staking-contract.git"
+  },
+  "keywords": [
+    "staking",
+    "envoy",
+    "erc20"
+  ],
+  "author": "kasperdeblieck@hotmail.com",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/envoynetwork/staking-contract/issues"
+  },
+  "homepage": "https://github.com/envoynetwork/staking-contract#readme",
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.3.3",
+    "openzeppelin-test-helpers": "^0.5.1",
+    "solc": "^0.4.26",
+    "truffle": "^5.4.22"
+  }
+}
