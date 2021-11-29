@@ -18,7 +18,7 @@ contract EnvoyStaking is Ownable {
 
     event ConfigUpdate(string field, uint value);
     event Staking(address indexed stakeholder_, uint stake_);
-    event Rewarding(address indexed stakeholder_, uint reward_);
+    event Rewarding(address indexed stakeholder_, uint reward_, uint periods_);
 
     struct StakeHolder {
         uint stakingBalance;
@@ -41,8 +41,8 @@ contract EnvoyStaking is Ownable {
     uint public interestPeriod = 15 days;
     uint public cooldown = 2 days;
 
-    uint totalStake;
-    uint maxWeight;
+    uint public totalStake;
+    uint public maxWeight;
 
     constructor(address signatureAddress_, address stakingTokenAddress) {
         signatureAddress = signatureAddress_;
@@ -165,6 +165,7 @@ contract EnvoyStaking is Ownable {
         
         // Number of accounts for which rewards will be paid
         uint n = (block.timestamp-stakeholder.interestDate) / interestPeriod;
+        uint m = n;
 
         if (stakeholder.stakingBalance == 0 || n == 0){
             return 0;
@@ -174,9 +175,14 @@ contract EnvoyStaking is Ownable {
             // If updates were scheduled for the next period:
             // - first calculate rewards on the first compounding period with the old values
             // - set the new values to use in the computation of the following compounding periods
-            stakeholder.stakingBalance += stakeholder.stakingBalance * (baseInterest + extraInterest * stakeholder.weight);
-            stakeholder.interestDate += interestPeriod;
 
+            // Rewards based on old values
+            reward = stakeholder.stakingBalance * (baseInterest + extraInterest * stakeholder.weight) / interestDecimals;
+            // One period was already rewarded with old values
+            stakeholder.interestDate += interestPeriod;
+            n-=1;
+
+            // set new values
             if(stakeholder.newWeight > 0){
                 stakeholder.weight = stakeholder.newWeight;
                 stakeholder.newWeight = 0;
@@ -187,35 +193,35 @@ contract EnvoyStaking is Ownable {
                 stakeholder.newStake = 0;
             }
 
-            // One period was already rewarded with old values
-            stakeholder.interestDate += interestPeriod;
-            n-=1;
-
         }
 
-        // Update the timestamp of the timestamp for the staking period that was not rewarded yet
-        stakeholder.interestDate += (n * interestPeriod);
+        // Only continue if n is still greater than 0
+        if(n>0){
+            // Update the timestamp of the timestamp for the staking period that was not rewarded yet
+            stakeholder.interestDate += (n * interestPeriod);
 
-        uint s = stakeholder.stakingBalance;
-        uint r = baseInterest + extraInterest * stakeholder.weight;
+            uint s = stakeholder.stakingBalance;
+            uint r = baseInterest + extraInterest * stakeholder.weight;
 
-        while (n > 0) {
-            s += s * r / interestDecimals;
-            n -= 1;
+            while (n > 0) {
+                s += s * r / interestDecimals;
+                n -= 1;
+            }
+
+            reward += s - stakeholder.stakingBalance;
+        
         }
-
-        reward = s - stakeholder.stakingBalance;
 
         // If the stakeholder wants to redraw the rewards;
         // Send to his wallet. Else, update stakingbalance.
         if (withdrawl){
             stakingToken.transfer(_msgSender(), reward);
         } else {
-            stakeholder.stakingBalance = s;
+            stakeholder.stakingBalance += reward;
             totalStake += reward;
         }
 
-        emit Rewarding(stakeholderAddress, reward);
+        emit Rewarding(stakeholderAddress, reward, m);
 
     }
 
@@ -258,6 +264,10 @@ contract EnvoyStaking is Ownable {
     }
 
     function updateInterestDecimals(uint value) public onlyOwner{
+        // First adjust interest rates to new decimals.
+        // Make sure no precision is lost!
+        baseInterest = baseInterest * value / interestDecimals;
+        extraInterest = extraInterest * value / interestDecimals;
         interestDecimals = value;
         emit ConfigUpdate('Decimals', value);
     }
@@ -278,7 +288,7 @@ contract EnvoyStaking is Ownable {
     }
 
     function updateCoolDownPeriod(uint value) public onlyOwner{
-        interestPeriod = value;
+        cooldown = value;
         emit ConfigUpdate('Cool down period', value);
     }
 
