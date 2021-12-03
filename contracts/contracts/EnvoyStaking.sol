@@ -38,7 +38,7 @@ contract EnvoyStaking is Ownable {
     // Decimals used for interest calculation
     uint public interestDecimals = 1000000000000;
     uint public baseInterest = 4000000000;
-    uint public extraInterest = 400000000; //10% per year
+    uint public extraInterest = 4000000000; //10% per year
     uint public interestPeriod = 15 days;
     uint public cooldown = 2 days;
 
@@ -111,7 +111,8 @@ contract EnvoyStaking is Ownable {
         claimRewards(false);
         if(instant){
             stakeholder.interestDate = block.timestamp;
-            stakeholder.stakingBalance += amount;
+            stakeholder.stakingBalance += amount + stakeholder.newStake;
+            stakeholder.newStake = 0;
         } else {
             require(stakeholder.stakingBalance > 0, "New stakers must stake instantly");
             stakeholder.newStake = amount;
@@ -134,7 +135,7 @@ contract EnvoyStaking is Ownable {
         address sender = _msgSender();
         StakeHolder storage stakeholder = stakeholders[sender];
 
-        require(stakeholder.interestDate + cooldown < block.timestamp, "Funds are locked until cooldown period is over");
+        require(stakeholder.startDate + cooldown < block.timestamp, "Funds are locked until cooldown period is over");
         require(stakeholder.stakingBalance >= 0, "Nothing was staked");
         
         // Claim rewards with current stake
@@ -206,7 +207,7 @@ contract EnvoyStaking is Ownable {
             // Update the timestamp of the timestamp for the staking period that was not rewarded yet
             stakeholder.interestDate += (n * interestPeriod);
 
-            uint s = stakeholder.stakingBalance;
+            uint s = stakeholder.stakingBalance + reward;
             uint r = baseInterest + extraInterest * stakeholder.weight;
 
             while (n > 0) {
@@ -214,7 +215,7 @@ contract EnvoyStaking is Ownable {
                 n -= 1;
             }
 
-            reward += s - stakeholder.stakingBalance;
+            reward = s - stakeholder.stakingBalance;
         
         }
 
@@ -257,8 +258,8 @@ contract EnvoyStaking is Ownable {
         address sender = _msgSender();
         
         // Make sure the staked amounts are never withdrawn
-        if(amount > address(this).balance - totalStake){
-            amount = address(this).balance - totalStake;
+        if(amount > stakingToken.balanceOf(address(this)) - totalStake){
+            amount = stakingToken.balanceOf(address(this)) - totalStake;
         }
 
         stakingToken.transfer(sender, amount);

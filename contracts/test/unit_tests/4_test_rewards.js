@@ -56,20 +56,20 @@ contract("Rewarding", function(accounts) {
         // Make sure the contract and accounts have funds
         for(account in accounts){
             await token.claim(accounts[account], web3.utils.toWei('100'))
-            await token.claim(contract.address, web3.utils.toWei('1000'))
         }
+        await token.claim(contract.address, web3.utils.toWei('1000'))
         
         // Store initial contract values
-        contractBalance = await token.balanceOf(contract.address)
         interestPeriod = await contract.interestPeriod.call()
         interestDecimals = await contract.interestDecimals.call()
         interestRate = await contract.baseInterest.call()
         
         stake = web3.utils.toWei('50')
-
+        
         // Should work: tested in ./2_test_staking.js
         await token.approve(contract.address, stake, {from: staker})
         await contract.stake(stake, true, {from: staker})
+        contractBalance = await token.balanceOf(contract.address)
 
     }),
 
@@ -207,9 +207,11 @@ contract("Rewarding", function(accounts) {
         await contract.claimRewards(false, {from: staker})
         
         // Calculate the interest off-chain
-        var compoundedInterestRate = web3.utils.toBN(Math.round(((1 + interestRate.toNumber()/interestDecimals.toNumber()) ** 100) * interestDecimals.toNumber()))
+        var newBalance = stakingBalance
+        for(i=0;i<100;i++){
+            newBalance = newBalance.add(newBalance.mul(interestRate).div(interestDecimals))       
+        }
 
-        var newBalance = stakingBalance.div(interestDecimals).mul(compoundedInterestRate)
         var newInterestDate = interestDate.add(period)
 
         // Compare balance after claiming
@@ -220,5 +222,72 @@ contract("Rewarding", function(accounts) {
         assert.equal(newInterestDate.toString(), (await contract.stakeholders.call(staker)).interestDate.toString(),
             "Interest date not updated correctly")
 
-    })
+    }),
+
+    it("Reward with a delayed update in higher user weight", async function() {
+
+        interestDate = (await contract.stakeholders.call(staker)).interestDate
+        stakingBalance = (await contract.stakeholders.call(staker)).stakingBalance
+        
+        // Move one day
+        await truffleHelpers.time.increase(truffleHelpers.time.duration.seconds('86400'));
+
+
+        // Increase user weight
+        var firstSignature = getSignature(contract, staker, 1).signature
+        await contract.updateWeight(1, firstSignature, false, {from: staker})
+        
+        //** */ Move 2 periods: 1 for old weights, one for new
+        var period = (await contract.interestPeriod.call()).mul(web3.utils.toBN('2'))
+        await truffleHelpers.time.increase(truffleHelpers.time.duration.seconds(period));
+
+        var newBalance = stakingBalance.add(stakingBalance.mul(interestRate).div(interestDecimals))
+        var newInterestRate = interestRate.add((await contract.stakeholders.call(staker)).newWeight.mul(await contract.extraInterest.call()))
+        newBalance = newBalance.add(newBalance.mul(newInterestRate).div(interestDecimals))
+
+        // Claim rewards on chain
+        await contract.claimRewards(false, {from: staker})
+        
+        // Compare balance after claiming
+        assert.equal(newBalance.toString(), (await contract.stakeholders.call(staker)).stakingBalance.toString(),
+            "Staking reward not updated correctly")
+
+        assert.equal(interestDate.add(period).toString(), (await contract.stakeholders.call(staker)).interestDate.toString(),
+            "Interest date not updated correctly")
+
+    }),
+    it("Reward with an immediate update in higher user weight", async function() {
+
+        interestDate = (await contract.stakeholders.call(staker)).interestDate
+        stakingBalance = (await contract.stakeholders.call(staker)).stakingBalance
+        
+        // Move one day
+        await truffleHelpers.time.increase(truffleHelpers.time.duration.seconds('86400'));
+
+
+        // Increase user weight
+        var firstSignature = getSignature(contract, staker, 1).signature
+        await contract.updateWeight(1, firstSignature, true, {from: staker})
+        
+        //** */ Move 1 periods, update should be immediate
+        var period = await contract.interestPeriod.call()
+        await truffleHelpers.time.increase(truffleHelpers.time.duration.seconds(period));
+
+        var newInterestRate = interestRate.add((await contract.stakeholders.call(staker)).weight.mul(await contract.extraInterest.call()))
+        var newBalance = stakingBalance.add(stakingBalance.mul(newInterestRate).div(interestDecimals))
+
+
+        // Claim rewards on chain
+        await contract.claimRewards(false, {from: staker})
+        
+        // Compare balance after claiming
+        assert.equal(newBalance.toString(), (await contract.stakeholders.call(staker)).stakingBalance.toString(),
+            "Staking reward not updated correctly")
+
+        // The new interest day is the initial day, plus the one day we moved at the start, plus one period
+        assert.equal(interestDate.add(web3.utils.toBN('86400')).add(period).toString(), (await contract.stakeholders.call(staker)).interestDate.toString(),
+            "Interest date not updated correctly")
+
+    })    
+
 })
