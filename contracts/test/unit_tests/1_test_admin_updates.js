@@ -48,11 +48,12 @@ contract("Update globals as admin", function(accounts) {
     }),
     it("Update interest decimals", async function() {
         var oldDecimals = await contract.interestDecimals.call()
+        var newNumberOfDecimals = web3.utils.toBN('8')
         var newDecimals = web3.utils.toBN('100000000')
         var newBaseInterest = (await contract.baseInterest.call()).mul(newDecimals).div(oldDecimals)
         var newExtraInterest = (await contract.extraInterest.call()).mul(newDecimals).div(oldDecimals)
-        await truffleAssert.reverts(contract.updateInterestDecimals(newDecimals, {from: nonOwnerAddress}))
-        await contract.updateInterestDecimals(newDecimals, {from: ownerAddress})
+        await truffleAssert.reverts(contract.updateInterestDecimals(newNumberOfDecimals, {from: nonOwnerAddress}))
+        await contract.updateInterestDecimals(newNumberOfDecimals, {from: ownerAddress})
         assert.equal(newDecimals.toString(), (await contract.interestDecimals.call()).toString())
         assert.equal(newBaseInterest.toString(), (await contract.baseInterest.call()).toString())
         assert.equal(newExtraInterest.toString(), (await contract.extraInterest.call()).toString())

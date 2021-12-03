@@ -23,6 +23,7 @@ contract EnvoyStaking is Ownable {
     struct StakeHolder {
         uint stakingBalance;
         uint weight;
+        uint startDate;
         uint interestDate; 
         uint newStake; 
         uint newWeight;
@@ -102,6 +103,10 @@ contract EnvoyStaking is Ownable {
 
         StakeHolder storage stakeholder = stakeholders[sender];
 
+        if(stakeholder.startDate == 0) {
+            stakeholder.startDate = block.timestamp;
+        }
+
         // Claim previous rewards with old staked value
         claimRewards(false);
         if(instant){
@@ -135,8 +140,9 @@ contract EnvoyStaking is Ownable {
         // Claim rewards with current stake
         claimRewards(false);
         
-        if(amount > stakeholder.stakingBalance){
+        if(amount >= stakeholder.stakingBalance){
             amount = stakeholder.stakingBalance;
+            stakeholder.startDate = 0;
         }
         stakingToken.transfer(sender, amount);
 
@@ -263,9 +269,17 @@ contract EnvoyStaking is Ownable {
         signatureAddress = value; 
     }
 
+    /**
+     * Updates the amount of decimals used for the interest rate.
+     * After this accuracy, rounding will be applied
+     * and approximations will stack over long time periods.
+     * @param value The number of decimals. NOT the number to devide with.
+     *  e.g.: to use 3 decimals, input 3 (10**3) and not 1000.
+     */
     function updateInterestDecimals(uint value) public onlyOwner{
         // First adjust interest rates to new decimals.
         // Make sure no precision is lost!
+        value = 10 ** value;
         baseInterest = baseInterest * value / interestDecimals;
         extraInterest = extraInterest * value / interestDecimals;
         interestDecimals = value;
