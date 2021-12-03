@@ -50,8 +50,8 @@ contract("Weighted stakeholders", function(accounts) {
         // Make sure the contract and accounts have funds
         for(account in accounts){
             await token.claim(accounts[account], web3.utils.toWei('100'))
-            await token.claim(contract.address, web3.utils.toWei('1000'))
         }
+        await token.claim(contract.address, web3.utils.toWei('1000'))
 
         var stake = web3.utils.toWei('50')
 
