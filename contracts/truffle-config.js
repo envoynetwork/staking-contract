@@ -1,18 +1,16 @@
 /**
- * Envoy Dino Warriors deployment config
+ * Envoy staking deployment config
  */
 
- const HDWalletProvider = require('@truffle/hdwallet-provider');
+// MAKE SURE ALL NECESSARY VARIABLES ARE DEFINED IN .ENV
+require('dotenv').config({path: '../.env'})
 
- const fs = require('fs');
- const privateKeys = [fs.readFileSync("../secrets/.secret").toString().trim()];
- const infuraKey = fs.readFileSync("../secrets/.infuraKey").toString().trim();
- const infuraKeyProduction = fs.readFileSync("../secrets/.infuraKeyProduction").toString().trim();
- const etherscanKey = fs.readFileSync("../secrets/.etherscanKey").toString().trim();
- module.exports = {
+const HDWalletProvider = require('@truffle/hdwallet-provider');
+
+module.exports = {
  
-   // Ethereum networks
-   networks: {
+  // Ethereum networks
+  networks: {
  
     // Development
     development: {
@@ -21,23 +19,23 @@
       network_id: "*",
       gas: 1000000000000000
     },
-    // Testnet
+    // Goerli testnet
     goerli: {
       provider: function() {
         return new HDWalletProvider({
-          privateKeys: privateKeys,
-          providerOrUrl: "https://goerli.infura.io/v3/" + infuraKey})
+          PRIVATE_KEYS: process.env.PRIVATE_KEYS.split(' '),
+          providerOrUrl: "https://goerli.infura.io/v3/" + process.env.INFURA_KEY})
       },
       network_id: 5,
       gas: 4000000
     },
 
-    // Testnet
+    // Rinkeby testnet
     rinkeby: {
       provider: function() {
         return new HDWalletProvider({
-          privateKeys: privateKeys,
-          providerOrUrl: "https://rinkeby.infura.io/v3/" + infuraKey})      
+          PRIVATE_KEYS: process.env.PRIVATE_KEYS.split(' '),
+          providerOrUrl: "https://rinkeby.infura.io/v3/" + process.env.INFURA_KEY})      
         },
       network_id: 4
     },
@@ -47,25 +45,28 @@
     mainnet: {
       provider: function() {
         return new HDWalletProvider({
-          privateKeys: privateKeys,
-          providerOrUrl: "https://mainnet.infura.io/v3/" + infuraKeyProduction})      
+          PRIVATE_KEYS: process.env.PRIVATE_KEYS.split(' '),
+          providerOrUrl: "https://mainnet.infura.io/v3/" + process.env.INFURA_KEYProduction})      
         },
       network_id: 1
     },
 
+    // Polygon
     polygon: {
       provider: function() {
         return new HDWalletProvider({
-          privateKeys: privateKeys,
-          providerOrUrl: "https://polygon-mainnet.infura.io/v3/" + infuraKey})
+          PRIVATE_KEYS: process.env.PRIVATE_KEYS.split(' '),
+          providerOrUrl: "https://polygon-mainnet.infura.io/v3/" + process.env.INFURA_KEY})
       },
       network_id: 137,
     },
+
+    // Polygon Mumbai testnet
     mumbai: {
       provider: function() {
         return new HDWalletProvider({
-          privateKeys: privateKeys,
-          providerOrUrl: "https://polygon-mumbai.infura.io/v3/" + infuraKey})
+          PRIVATE_KEYS: process.env.PRIVATE_KEYS.split(' '),
+          providerOrUrl: "https://polygon-mumbai.infura.io/v3/" + process.env.INFURA_KEY})
       },
       network_id: 80001,
     },
@@ -97,7 +98,7 @@
     'truffle-plugin-verify'
   ],  
   api_keys: {
-    etherscan: etherscanKey
+    etherscan: process.env.ETHERSCAN_KEY
   }
 };
  

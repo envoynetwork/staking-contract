@@ -23,6 +23,8 @@
   "homepage": "https://github.com/envoynetwork/staking-contract#readme",
   "dependencies": {
     "@openzeppelin/contracts": "^4.3.3",
+    "@truffle/hdwallet-provider": "^2.0.0",
+    "dotenv": "^10.0.0",
     "openzeppelin-test-helpers": "^0.5.1",
     "solc": "^0.4.26",
     "truffle": "^5.4.22"
