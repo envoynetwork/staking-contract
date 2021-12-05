@@ -43,11 +43,6 @@ class ConnectWeb3 extends Component{
                 rewardsToClaim: 0
             }
         }
-        // this.handleChange = this.handleChange.bind(this);
-        // this.handleSubmit = this.handleSubmit.bind(this);
-        // this.handleDistribution = this.handleDistribution.bind(this);
-        // this.handleWithdrawl = this.handleWithdrawl.bind(this);
-        // this.handleChangeOwner = this.handleChangeOwner.bind(this);
     }
 
     /**
@@ -139,64 +134,6 @@ class ConnectWeb3 extends Component{
         this.setState(state)
     }
 
-    // handleChange(event) {
-    //     let state = this.state
-    //     console.log(event.target)
-    //     state.formProperties[event.target.name] = event.target.value
-    //     this.setState(state);
-    // }
-
-    // async handleSubmit(event) {
-    //     event.preventDefault()
-    //     try{
-    //         let receipt = await this.state.contract.methods.setShareHolder(this.state.formProperties.shareholder, this.state.formProperties.basepoints).send({from: this.state.connectedWallet})
-    //         await receipt
-    //         alert('Transaction mined!');
-    //     }
-    //     catch (error){
-    //         await error
-    //         alert(error)
-    //     }
-    // }
-
-    // async handleDistribution(event) {
-    //     event.preventDefault()
-    //     try{
-    //         let receipt = await this.state.contract.methods.distributeFunds().send({from: this.state.connectedWallet})
-    //         await receipt
-    //         alert('Transaction mined!');
-    //     }
-    //     catch (error){
-    //         await error
-    //         alert(error)
-    //     }        
-    // }
-
-    // async handleWithdrawl(event){
-    //     event.preventDefault()
-    //     try{
-    //         let receipt = await this.state.contract.methods.withdrawlAllFunds().send({from: this.state.connectedWallet})
-    //         await receipt
-    //         alert('Transaction mined!');
-    //     }
-    //     catch (error){
-    //         await error
-    //         alert(error)
-    //     }        
-    // }
-
-    // async handleChangeOwner(event){
-    //     event.preventDefault()
-    //     try{
-    //         let receipt = await this.state.contract.methods.transferOwnership(this.state.formProperties.newOwner).send({from: this.state.connectedWallet})
-    //         await receipt
-    //         alert('Transfered ownership');
-    //     }
-    //     catch (error){
-    //         await error
-    //         alert(error)
-    //     }     
-    // }
 
     render() {
         let state = this.state
@@ -249,100 +186,7 @@ class ConnectWeb3 extends Component{
                 </ul>
             </div>        
         </div>
-        //    <div className='Subtitle'>
-        //         Current status
-        //     </div>    
-        //     <div>
-        //         A list of currently registered shareholders (currently {state.contractProperties.shareholdersLength}) is listed below.
-        //         They account for a total share of {state.contractProperties.totalShares/10000}%)
-        //         The remaining {100-state.contractProperties.totalShares/10000}% of all funds will be send to the Envoy address.
-        //     </div>
-        //     <table id="ShareholderList">
-        //         <thead>
-        //             <tr>
-        //                 <td>
-        //                     Shareholder address
-        //                 </td>
-        //                 <td>
-        //                     %
-        //                 </td>
-        //             </tr>
-        //         </thead>
-        //         <tbody>
-        //             { (state.contractProperties.shareholdersLength == 0) ? (
-        //                 <tr key='0'>
-        //                     <td>
-        //                         No shareholders yet
-        //                     </td>
-        //                     <td>
-        //                         0%
-        //                     </td>
-        //                 </tr>
-        //                 ) : (
-        //                     state.contractProperties.shareholdersData.map(object => (
-        //                     <tr key={object.shareholder}>
-        //                         <td>
-        //                             {object.shareholder}
-        //                         </td>
-        //                         <td>
-        //                             {parseInt(object.basepoints)} basepoints
-        //                         </td>
-        //                     </tr>))
-        //                 )
-        //             }
-        //         </tbody>
-        //      </table>
-        //      <div>
-        //          Current balance of the contract: {state.contractProperties.balance} wei
-        //      </div>
-        //     <div className='Subtitle'>
-        //         Update a shareholder.
-        //     </div>
-        //     <div>
-        //         <ul>
-        //             <li> To add or update a shareholder, provide the address and the amount of basepoints (0.01BP = 1%) the share is.</li>
-        //             <li> To delete an existing shareholder, provide the address and set the amount to 0.</li>
-        //         </ul>
-        //     </div>
-        //     <form  onSubmit={this.handleSubmit}>
-        //         <label>
-        //             Shareholder:
-        //             <input type="text" name="shareholder" value={this.state.formProperties.shareholder} onChange={this.handleChange}/>
-        //                 {/* onChange={(e) => {this.handleChange('shareholder', e)}}/> */}
-        //         </label>
-        //         <label>
-        //             Amount of basepoints (1BP = 0.01%):
-        //             <input type="text" name="basepoints" value={this.state.formProperties.basepoints} onChange={this.handleChange}/>
-        //             {/* {(e) => {this.handleChange('basepoints', e)}}/> */}
-        //         </label>                
-        //         <input type="submit" value="Submit"/>
-        //     </form>
-        //     <div className='Subtitle'>
-        //         Distribute the funds as contract owner or withdrawl everything
-        //     </div>
-        //     <div>
-        //         With the button below, you can distribute the funds according to the distribution key of the contract.
-        //     </div>
-        //     <button onClick={this.handleDistribution}>Distribute funds</button>
-        //     <div>
-        //         With the button below, you can withdrawl all the funds to the contract owner address.
-        //     </div>
-        //     <button onClick={this.handleWithdrawl}>Withdrawl all funds</button>
-        //     <div className='Subtitle'>
-        //         Update contract owner.
-        //     </div>
-        //     <div>
-        //         Transfer ownership rights to a new address.
-        //     </div>
-        //     <form  onSubmit={this.handleChangeOwner}>
-        //         <label>
-        //             New owner:
-        //             <input type="text" name="newOwner" value={this.state.formProperties.newOwner} onChange={this.handleChange}/>
-        //                 {/* onChange={(e) => {this.handleChange('shareholder', e)}}/> */}
-        //         </label>          
-        //         <input type="submit" value="Submit"/>
-        //     </form>
-        // </div>
+
         )
     }
     
