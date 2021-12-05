@@ -1,3 +1,3 @@
 Rinkeby:
     TestToken: 0x464738Ca05eC76C16B381a6B26a90b28e2C5b86C
-    StakingContract: 0x3fb5749f4ba43e7f8cB9182B828beeF39e37fE75
+    StakingContract: 0x5343ddc4dc1a371a648284f7705ca9770a758529

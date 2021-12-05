@@ -153,6 +153,46 @@ contract EnvoyStaking is Ownable {
     }
 
     /**
+     * Function to claim the rewards earned by staking.
+     * @dev uses calculateRewards to get the amount owed
+     * @param withdrawl if true, send the rewards to the stakeholder.
+     *  if false, add the rewards to the staking balance of the stakeholder.
+     */
+    function claimRewards(bool withdrawl) public {
+
+        address stakeholderAddress = _msgSender();
+        StakeHolder storage stakeholder = stakeholders[stakeholderAddress];
+
+        // Number of accounts for which rewards will be paid
+        uint n = (block.timestamp-stakeholder.interestDate) / interestPeriod;
+
+        if (stakeholder.stakingBalance == 0 || n == 0){
+            return;
+        }
+
+        // Calculate the rewards and new stakeholder state
+        (uint reward, StakeHolder memory newStakeholder) = calculateRewards(stakeholderAddress);
+        
+        stakeholder.stakingBalance = newStakeholder.stakingBalance;
+        stakeholder.weight = newStakeholder.weight;
+        stakeholder.newWeight = newStakeholder.newWeight;
+        stakeholder.newStake = newStakeholder.newStake;
+        stakeholder.interestDate = newStakeholder.interestDate;
+
+        // If the stakeholder wants to redraw the rewards;
+        // Send to his wallet. Else, update stakingbalance.
+        if (withdrawl){
+            stakingToken.transfer(_msgSender(), reward);
+        } else {
+            stakeholder.stakingBalance += reward;
+            totalStake += reward;
+        }
+
+        emit Rewarding(stakeholderAddress, reward, n);
+
+    }
+
+    /**
      * Calculate the rewards owed to a stakeholder.
      * The interest will be calculated based on:
      *  - The amount staked of the stakeholder
@@ -160,22 +200,19 @@ contract EnvoyStaking is Ownable {
      *  - The amount of interest periods staked
      *  - The base and extra interest of the contract
      * The formula of compounding interest is applied.
-     * @param withdrawl if true, send the rewards to the stakeholder.
-     *  if false, add the rewards to the staking balance of the stakeholder.
+     * @param stakeholderAddress The address to calculate rewards for
      * @return reward The rewards of the stakeholder for previous periods.
+     * @return stakeholder The new object containing stakeholder state
      */
-    function claimRewards(bool withdrawl) public returns(uint reward) {
+    function calculateRewards(address stakeholderAddress) public view returns(uint reward, StakeHolder memory stakeholder) {
 
-        address stakeholderAddress = _msgSender();
-        StakeHolder storage stakeholder = stakeholders[stakeholderAddress];
-
+        stakeholder = stakeholders[stakeholderAddress];
         
         // Number of accounts for which rewards will be paid
         uint n = (block.timestamp-stakeholder.interestDate) / interestPeriod;
-        uint m = n;
 
         if (stakeholder.stakingBalance == 0 || n == 0){
-            return 0;
+            return (0, stakeholder);
         }
 
         if (stakeholder.newWeight > 0 || stakeholder.newStake > 0){
@@ -219,20 +256,7 @@ contract EnvoyStaking is Ownable {
         
         }
 
-        // If the stakeholder wants to redraw the rewards;
-        // Send to his wallet. Else, update stakingbalance.
-        if (withdrawl){
-            stakingToken.transfer(_msgSender(), reward);
-        } else {
-            stakeholder.stakingBalance += reward;
-            totalStake += reward;
-        }
-
-        emit Rewarding(stakeholderAddress, reward, m);
-
     }
-
-
 
 
     /**

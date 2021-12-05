@@ -37,7 +37,7 @@
 ## Events:
 - [`ConfigUpdate(string field, uint256 value)`](#EnvoyStaking-ConfigUpdate-string-uint256-)
 - [`Staking(address stakeholder_, uint256 stake_)`](#EnvoyStaking-Staking-address-uint256-)
-- [`Rewarding(address stakeholder_, uint256 reward_)`](#EnvoyStaking-Rewarding-address-uint256-)
+- [`Rewarding(address stakeholder_, uint256 reward_, uint256 periods_)`](#EnvoyStaking-Rewarding-address-uint256-uint256-)
 
 ## Functions:
 ### Function `constructor(address signatureAddress_, address stakingTokenAddress)` (public) {#EnvoyStaking-constructor-address-address-}
@@ -135,9 +135,15 @@ making sure the funds of stakeholders stay in the contract.
 
 ### Function `updateInterestDecimals(uint256 value)` (public) {#EnvoyStaking-updateInterestDecimals-uint256-}
 
+Updates the amount of decimals used for the interest rate.
+After this accuracy, rounding will be applied
+and approximations will stack over long time periods.
 
 
 
+#### Parameters:
+- `value`: The number of decimals. NOT the number to devide with.
+ e.g.: to use 3 decimals, input 3 (10**3) and not 1000.
 ### Function `updateBaseInterest(uint256 value)` (public) {#EnvoyStaking-updateBaseInterest-uint256-}
 
 
@@ -165,5 +171,5 @@ making sure the funds of stakeholders stay in the contract.
 No description
 ### Event `Staking(address stakeholder_, uint256 stake_)` {#EnvoyStaking-Staking-address-uint256-}
 No description
-### Event `Rewarding(address stakeholder_, uint256 reward_)` {#EnvoyStaking-Rewarding-address-uint256-}
+### Event `Rewarding(address stakeholder_, uint256 reward_, uint256 periods_)` {#EnvoyStaking-Rewarding-address-uint256-uint256-}
 No description
