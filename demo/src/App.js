@@ -14,7 +14,10 @@ import tokenABIJSON from './abi/abi-token.json'
 // Settings will be differ
 
 
-import ConnectWeb3 from './components/ConnectWeb3';
+import StakingOverviewWithNavigate from './components/StakingOverview';
+import ContractProperties from './components/ContractProperties';
+import UserProperties from './components/UserProperties';
+
 
 const web3Provider = process.env.REACT_APP_WEB3PROVIDER
 const contractAddress = process.env.REACT_APP_STAKING_ADDRESS
@@ -27,7 +30,18 @@ function App() {
     <Router>
       <Routes>
         <Route exact path='/' element={<Navigate to='/main' replace={true} />} />
-        <Route path='/main' element = { <ConnectWeb3 abiContract={abiContract}
+        <Route path='/main' element = { <StakingOverviewWithNavigate abiContract={abiContract}
+                                        abiToken={abiToken}
+                                        contractAddress={contractAddress}
+                                        tokenAddress={tokenAddress}
+                                        web3Provider={web3Provider}/>}/>
+        <Route path='/contractproperties' element = { <ContractProperties abiContract={abiContract}
+                                        abiToken={abiToken}
+                                        contractAddress={contractAddress}
+                                        tokenAddress={tokenAddress}
+                                        web3Provider={web3Provider}/>}/>
+
+        <Route path='/userproperties' element = { <UserProperties abiContract={abiContract}
                                         abiToken={abiToken}
                                         contractAddress={contractAddress}
                                         tokenAddress={tokenAddress}
