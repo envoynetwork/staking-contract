@@ -27,6 +27,7 @@
     "dotenv": "^10.0.0",
     "openzeppelin-test-helpers": "^0.5.1",
     "solc": "^0.4.26",
-    "truffle": "^5.4.22"
+    "truffle": "^5.4.22",
+    "webpack": "^4.44.2"
   }
 }

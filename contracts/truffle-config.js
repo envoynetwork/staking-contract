@@ -19,11 +19,11 @@ module.exports = {
       network_id: "*",
       gas: 1000000000000000
     },
-    // Goerli testnet
+    // Goerlestnet
     goerli: {
       provider: function() {
         return new HDWalletProvider({
-          PRIVATE_KEYS: process.env.PRIVATE_KEYS.split(' '),
+          privateKeys: process.env.PRIVATE_KEYS.split(' '),
           providerOrUrl: "https://goerli.infura.io/v3/" + process.env.INFURA_KEY})
       },
       network_id: 5,
@@ -34,7 +34,7 @@ module.exports = {
     rinkeby: {
       provider: function() {
         return new HDWalletProvider({
-          PRIVATE_KEYS: process.env.PRIVATE_KEYS.split(' '),
+          privateKeys: process.env.PRIVATE_KEYS.split(' '),
           providerOrUrl: "https://rinkeby.infura.io/v3/" + process.env.INFURA_KEY})      
         },
       network_id: 4
@@ -45,7 +45,7 @@ module.exports = {
     mainnet: {
       provider: function() {
         return new HDWalletProvider({
-          PRIVATE_KEYS: process.env.PRIVATE_KEYS.split(' '),
+          privateKeys: process.env.PRIVATE_KEYS.split(' '),
           providerOrUrl: "https://mainnet.infura.io/v3/" + process.env.INFURA_KEYProduction})      
         },
       network_id: 1
@@ -55,7 +55,7 @@ module.exports = {
     polygon: {
       provider: function() {
         return new HDWalletProvider({
-          PRIVATE_KEYS: process.env.PRIVATE_KEYS.split(' '),
+          privateKeys: process.env.PRIVATE_KEYS.split(' '),
           providerOrUrl: "https://polygon-mainnet.infura.io/v3/" + process.env.INFURA_KEY})
       },
       network_id: 137,
@@ -65,7 +65,7 @@ module.exports = {
     mumbai: {
       provider: function() {
         return new HDWalletProvider({
-          PRIVATE_KEYS: process.env.PRIVATE_KEYS.split(' '),
+          privateKeys: process.env.PRIVATE_KEYS.split(' '),
           providerOrUrl: "https://polygon-mumbai.infura.io/v3/" + process.env.INFURA_KEY})
       },
       network_id: 80001,

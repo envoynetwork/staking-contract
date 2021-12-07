@@ -17,6 +17,5 @@ module.exports = async function (deployer, network, accounts) {
     const token = await TestToken.deployed()
     tokenAddress = token.address
   }
-  
   await deployer.deploy(EnvoyStaking, signatureAddress, tokenAddress);    
 };
