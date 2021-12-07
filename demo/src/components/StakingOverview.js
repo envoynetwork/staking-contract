@@ -2,7 +2,6 @@ import React, {Component}  from 'react'
 import {useNavigate} from 'react-router-dom'
 import Web3 from 'web3'
 
-import './StakingOverview.css';
 import {connectWallet, getConnectedNetwork, getContractProperties, getUserProperties} from './utils'
 
 /**
@@ -89,6 +88,7 @@ class StakingOverview extends Component{
                     <li>Testing contract with address '{this.props.contractAddress}' on network {getConnectedNetwork(state.connectedNetwork)}</li>
                     <li>The contract address of the staking token is '{this.props.tokenAddress}' on network {getConnectedNetwork(state.connectedNetwork)}</li>
                 </ul>
+
             </div>
             <div className='Subtitle'>
                 Contract properties:
@@ -96,12 +96,12 @@ class StakingOverview extends Component{
             <div>
                 <ul>
                     <li>The address of the contract owner able to update the contract state is: '{state.contractProperties._contractOwner}'.</li>
-                    <li>BaseInterest: {state.contractProperties.baseInterest/state.contractProperties.interestDecimals*100}%</li>
-                    <li>ExtraInterest: {state.contractProperties.extraInterest/state.contractProperties.interestDecimals*100}%</li>
-                    <li>Period between rewards: {state.contractProperties.interestPeriod/86400} days</li>
-                    <li>Cooldown period before withdrawl: {state.contractProperties.cooldown/86400} days</li>
-                    <li>Total staked funds: {state.contractProperties.totalStake}</li>
-                    <li>Max weight: {state.contractProperties.maxWeight}</li>
+                    <li>BaseInterest (every staker gets this interest): {state.contractProperties.baseInterest/state.contractProperties.interestDecimals*100}%</li>
+                    <li>ExtraInterest (linear increase with the level of the staker): {state.contractProperties.extraInterest/state.contractProperties.interestDecimals*100}%</li>
+                    <li>Period you have to wait before rewards are earned: {state.contractProperties.interestPeriod/86400} days</li>
+                    <li>Cooldown period before withdrawl is possible: {state.contractProperties.cooldown/86400} days</li>
+                    <li>Total staked funds in the contract: {state.contractProperties.totalStake}</li>
+                    <li>The highest weight observed in the contract: {state.contractProperties.maxWeight}</li>
                 </ul>
                 <button onClick={() => this.props.navigate('/contractproperties')}>Update properties as owner</button>
 
@@ -115,7 +115,7 @@ class StakingOverview extends Component{
                     <li>Staked balance: {state.userProperties.stakingBalance} ENVOY</li>
                     <li>Interest for the user (base interest + extra interest x weight): {(parseInt(state.contractProperties.baseInterest)+parseInt(state.contractProperties.extraInterest)*parseInt(state.userProperties.weight))/state.contractProperties.interestDecimals*100}%</li>
                     <li>Rewards to be claimed: {state.userProperties.rewardsToClaim} ENVOY</li>                 
-                    <li>Users level: {state.userProperties.weight}</li>                   
+                    <li>User level: {state.userProperties.weight}</li>                   
                     <li>Start date of staking (UNIX): {state.userProperties.startDate}</li> 
                     <li>Date of last reward (UNIX): {state.userProperties.startDate}</li>
                 </ul>
