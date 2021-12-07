@@ -53,7 +53,6 @@ async function getContractProperties(state){
 
 async function getUserProperties(sender, state){
     state.userProperties = await state.contractReadOnly.methods.stakeholders(sender).call()
-    console.log(await state.contractReadOnly.methods.calculateRewards(sender).call())
     state.userProperties.rewardsToClaim = (await state.contractReadOnly.methods.calculateRewards(sender).call())[0]
     return state
 }

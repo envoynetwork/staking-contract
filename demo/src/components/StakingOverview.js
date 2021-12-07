@@ -1,5 +1,5 @@
 import React, {Component}  from 'react'
-import {Route, Navigate, useNavigate} from 'react-router-dom'
+import {useNavigate} from 'react-router-dom'
 import Web3 from 'web3'
 
 import './StakingOverview.css';
@@ -55,9 +55,7 @@ class StakingOverview extends Component{
         let state = this.state
 
         // Get read version and write version (connected via wallet) of web3
-        state.web3 = new Web3(window.ethereum);
-        state.contract = new state.web3.eth.Contract(this.props.abiContract, this.props.contractAddress);
-
+        
         state.web3ReadOnly = new Web3(this.props.web3Provider);
         state.contractReadOnly = new state.web3ReadOnly.eth.Contract(this.props.abiContract, this.props.contractAddress);
         state.tokenReadOnly = new state.web3ReadOnly.eth.Contract(this.props.abiToken, this.props.tokenAddress);
@@ -66,9 +64,11 @@ class StakingOverview extends Component{
         if (!window.ethereum) {
             alert("Web3 wallet not found");
         } else {
+            state.web3 = new Web3(window.ethereum);
+            state.contract = new state.web3.eth.Contract(this.props.abiContract, this.props.contractAddress);
             state = await connectWallet(state);
             state = await getContractProperties(state)
-            state = getUserProperties(state.connectedWallet, state)
+            state = await getUserProperties(state.connectedWallet, state)
         }
         this.setState(state)
     }
@@ -78,22 +78,16 @@ class StakingOverview extends Component{
         return (
         <div>
             <div className='Title'>
-                Envoy staking contract demo
+                Envoy staking contract overview
             </div>
             <div className='Subtitle'>
                 Info
             </div>
             <div>
                 This contract will be used to reward Envoy stakers with staking rewards. The source code can be found on: <a href="url">https://github.com/envoynetwork/staking-contract</a>
-            </div>
-            <div className='Subtitle'>
-                Contract and network data:
-            </div>
-            <div>
                 <ul>
                     <li>Testing contract with address '{this.props.contractAddress}' on network {getConnectedNetwork(state.connectedNetwork)}</li>
                     <li>The contract address of the staking token is '{this.props.tokenAddress}' on network {getConnectedNetwork(state.connectedNetwork)}</li>
-                    <li>The address of the contract owner able to update the contract state is: '{state.contractProperties._contractOwner}'.</li>
                 </ul>
             </div>
             <div className='Subtitle'>
@@ -101,9 +95,9 @@ class StakingOverview extends Component{
             </div>
             <div>
                 <ul>
-                    <li>Testing contract with address '{this.props.contractAddress}' on network {getConnectedNetwork(state.connectedNetwork)}</li>
-                    <li>BaseInterest: {state.contractProperties.baseInterest/state.contractProperties.interestDecimals}</li>
-                    <li>ExtraInterest: {state.contractProperties.extraInterest/state.contractProperties.interestDecimals}</li>
+                    <li>The address of the contract owner able to update the contract state is: '{state.contractProperties._contractOwner}'.</li>
+                    <li>BaseInterest: {state.contractProperties.baseInterest/state.contractProperties.interestDecimals*100}%</li>
+                    <li>ExtraInterest: {state.contractProperties.extraInterest/state.contractProperties.interestDecimals*100}%</li>
                     <li>Period between rewards: {state.contractProperties.interestPeriod/86400} days</li>
                     <li>Cooldown period before withdrawl: {state.contractProperties.cooldown/86400} days</li>
                     <li>Total staked funds: {state.contractProperties.totalStake}</li>
@@ -118,13 +112,15 @@ class StakingOverview extends Component{
             </div>
             <div>
                 <ul>
-                    <li>Staked balance: {state.userProperties.stakingBalance} ENVOY</li> 
+                    <li>Staked balance: {state.userProperties.stakingBalance} ENVOY</li>
+                    <li>Interest for the user (base interest + extra interest x weight): {(parseInt(state.contractProperties.baseInterest)+parseInt(state.contractProperties.extraInterest)*parseInt(state.userProperties.weight))/state.contractProperties.interestDecimals*100}%</li>
                     <li>Rewards to be claimed: {state.userProperties.rewardsToClaim} ENVOY</li>                 
-                    <li>Users weight: {state.userProperties.weight}</li>                   
-                    <li>Start date of staking (UNIX): {state.userProperties.startDate} days</li> 
-                    <li>Date of last reward (UNIX): {state.userProperties.startDate} days</li>
+                    <li>Users level: {state.userProperties.weight}</li>                   
+                    <li>Start date of staking (UNIX): {state.userProperties.startDate}</li> 
+                    <li>Date of last reward (UNIX): {state.userProperties.startDate}</li>
                 </ul>
-                <button onClick={() => this.props.navigate('/userproperties')}>Update properties as stakeholder</button>
+                <button onClick={() => this.props.navigate('/token')}>Claim or approve test tokens for staking</button>
+                <button onClick={() => this.props.navigate('/userproperties')}>Interact as stakeholder</button>
             </div>        
         </div>
 

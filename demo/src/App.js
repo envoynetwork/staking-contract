@@ -15,8 +15,9 @@ import tokenABIJSON from './abi/abi-token.json'
 
 
 import StakingOverviewWithNavigate from './components/StakingOverview';
-import ContractProperties from './components/ContractProperties';
-import UserProperties from './components/UserProperties';
+import ContractPropertiesWithNavigate from './components/ContractProperties';
+import UserPropertiesWithNavigate from './components/UserProperties';
+import TokensWithNavigate from './components/Tokens';
 
 
 const web3Provider = process.env.REACT_APP_WEB3PROVIDER
@@ -35,17 +36,22 @@ function App() {
                                         contractAddress={contractAddress}
                                         tokenAddress={tokenAddress}
                                         web3Provider={web3Provider}/>}/>
-        <Route path='/contractproperties' element = { <ContractProperties abiContract={abiContract}
+        <Route path='/contractproperties' element = { <ContractPropertiesWithNavigate abiContract={abiContract}
                                         abiToken={abiToken}
                                         contractAddress={contractAddress}
                                         tokenAddress={tokenAddress}
                                         web3Provider={web3Provider}/>}/>
 
-        <Route path='/userproperties' element = { <UserProperties abiContract={abiContract}
+        <Route path='/userproperties' element = { <UserPropertiesWithNavigate abiContract={abiContract}
                                         abiToken={abiToken}
                                         contractAddress={contractAddress}
                                         tokenAddress={tokenAddress}
                                         web3Provider={web3Provider}/>}/>
+        <Route path='/token' element = { <TokensWithNavigate abiContract={abiContract}
+                                        abiToken={abiToken}
+                                        contractAddress={contractAddress}
+                                        tokenAddress={tokenAddress}
+                                        web3Provider={web3Provider}/>}/>      
       </Routes>
     </Router>
   );

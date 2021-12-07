@@ -28,11 +28,35 @@
   color: #61dafb;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+
+body{
+  margin-left: 5%;
+  margin-right: 5%;
 }
+
+div{
+  padding-bottom: 1%;
+}
+
+.Title{
+  font-size: large;
+  font-weight: bolder;
+  padding-top: 3%;
+}
+
+.Subtitle{
+  font-size: medium;
+  font-weight: bold;
+  padding-top: 2%;
+}
+
+table, td, th{
+  padding-top: 2%;
+  border-collapse: collapse;
+  border: 1px solid;
+}
+
+thead {
+  font-weight: bold;
+}
+
