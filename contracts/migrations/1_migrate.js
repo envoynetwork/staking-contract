@@ -1,6 +1,6 @@
 
 require('dotenv').config({path: '../.env'})
-const EnvoyStaking = artifacts.require("EnvoyStaking");
+const EnvoyStaking = artifacts.require("EnvoyStakingV2");
 const TestToken = artifacts.require("TestToken");
 
 module.exports = async function (deployer, network, accounts) {

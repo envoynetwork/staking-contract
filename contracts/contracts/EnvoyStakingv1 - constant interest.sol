@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
  * This contract allows Envoy token owners to stake their funds.
  * Staking funds will reward a periodic compounded interest.
  */
-contract EnvoyStaking is Ownable {
+contract EnvoyStakingV1 is Ownable {
     
     using SafeMath for uint;
 
