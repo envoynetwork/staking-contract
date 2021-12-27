@@ -367,16 +367,17 @@ contract EnvoyStakingV2 is Ownable {
             uint tsb = rewardPeriods[p].totalStakingBalance;
             uint twsb = rewardPeriods[p].totalWeightedStakingBalance;
 
+            // Store the denominator of the share which is the sum of:
+            // - the total weighted staked amounts
+            // - the total weighted rewards of the all periods.
+            uint rewardPerStakeDenominator = (tsb > 0) ?
+                twsb + unclaimedRewards * twsb / tsb : 1;
+
+            emit Test('total w stake', twsb);
+            emit Test('denominator', rewardPerStakeDenominator);
+
             // Loop over all periods between start and end (mostly only 1 period)
             for (uint q = start; q < end; q++) {
-
-                // Store the denominator of the share which is the sum of:
-                // - the total weighted staked amounts
-                // - the total weighted rewards of the all periods.
-                uint rewardPerStakeDenominator = (tsb > 0) ?
-                    twsb + unclaimedRewards * twsb / tsb : 1;
-                emit Test('total w stake', twsb);
-                emit Test('denominator', rewardPerStakeDenominator);
                 s += s*(stakeholder.weight+1) * rewardPeriods[p].rewardPerPeriod
                     / rewardPerStakeDenominator;
                 emit Test('q', q);            
@@ -504,17 +505,31 @@ contract EnvoyStakingV2 is Ownable {
 
     function totalUnclaimedRewards(uint period) public view returns(uint rewards){
         uint i = 0;
-        while(rewardPeriods[i].endDate > 0 && rewardPeriods[i].endDate < period ){
+        while(rewardPeriods[i].endDate < period){ // endDate = 0 is implicitly handled
             // No rewards are unclaimed if there were no stakers for a period
             if(rewardPeriods[i].totalWeightedStakingBalance > 0){
-                rewards += (rewardPeriods[i].endDate - rewardPeriods[i].startDate)
-                    * rewardPeriods[i].rewardPerPeriod
-                    - rewardPeriods[i].totalRewardsClaimed;
+                // Loop over completed periods with start and end date
+                if(i < rewardPeriods.length-1){
+                    rewards += (rewardPeriods[i].endDate - rewardPeriods[i].startDate)
+                        * rewardPeriods[i].rewardPerPeriod
+                        - rewardPeriods[i].totalRewardsClaimed;
+                } else {
+                    // Last period might be finished, while the state is not updated yet
+                    uint start;
+                    if (rewardPeriods[i].endDate > 0){
+                        rewards += (rewardPeriods[i].endDate - rewardPeriods[i].startDate)
+                            * rewardPeriods[i].rewardPerPeriod
+                            - rewardPeriods[i].totalRewardsClaimed;
+                        start = rewardPeriods[i].endDate + 1;                
+                    } else {
+                        start = rewardPeriods[i].startDate;
+                    }
+                    rewards += (period - start) * rewardPeriods[i].rewardPerPeriod - rewardPeriods[i].totalRewardsClaimed;
+                }
             }
             i++;
         }
         if(rewardPeriods[i].totalWeightedStakingBalance > 0){
-           rewards += (period - rewardPeriods[i].startDate) * rewardPeriods[i].rewardPerPeriod - rewardPeriods[i].totalRewardsClaimed;
         }
     }
 
