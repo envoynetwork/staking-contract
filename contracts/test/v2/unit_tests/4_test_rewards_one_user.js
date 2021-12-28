@@ -53,7 +53,7 @@ contract("Rewarding", function(accounts) {
         for(account in accounts){
             await token.claim(accounts[account], web3.utils.toWei('100'))
         }
-        await token.claim(contract.address, web3.utils.toWei('1000'))
+        await token.claim(contract.address, web3.utils.toWei('1000000'))
         
         // Store initial contract values
         rewardPeriodDuration = await contract.rewardPeriodDuration.call()
@@ -72,7 +72,7 @@ contract("Rewarding", function(accounts) {
         // *** Move 1 compounding period forward and check 
 
         stakingBalance = (await contract.stakeholders.call(staker)).stakingBalance
-
+    
         // Move in time
         await truffleHelpers.time.increase(truffleHelpers.time.duration.seconds(rewardPeriodDuration.muln(2)));
 
@@ -88,7 +88,6 @@ contract("Rewarding", function(accounts) {
         var latestRewardPeriod = await contract.rewardPeriods.call((await contract.getRewardPeriodsLength.call()).subn(1))
 
         var newStakerInfo = await contract.stakeholders.call(staker)
-        console.log(newStakerInfo)
         var newBalance = stakerInfo.newStake.add(latestRewardPeriod.rewardPerPeriod)
 
         // Compare balance after claiming
@@ -101,9 +100,10 @@ contract("Rewarding", function(accounts) {
 
         assert.equal(newStakerInfo.rewardPeriod.toString(), (await contract.getRewardPeriodsLength.call()).subn(1).toString(),
             "Reward period not updated correctly")    
-            
+        
+        for(var i=0;i<3;i++){console.log(i, (await contract.rewardPeriods.call(i)).startDate,(await contract.rewardPeriods.call(i)).endDate)}
         // Make sure a new reward period was added (because the total stake was updated)
-        assert.equal('2', (await contract.getRewardPeriodsLength.call()).toString(),
+        assert.equal('3', (await contract.getRewardPeriodsLength.call()).toString(),
             "Reward period not added")
         
         // Make sure the reward periods were updated correctly
@@ -116,7 +116,65 @@ contract("Rewarding", function(accounts) {
             "Total stake for latest period not set correctly")
         assert.equal(latestRewardPeriod.totalWeightedStakingBalance.toString(), '958050000000000000000000',
             "Total weighted stake for latest period not set correctly")
-        assert.equal(latestRewardPeriod.totalRewardsClaimed.toString(), '958000000000000000000000',
+        assert.equal(latestRewardPeriod.totalWeightedRewardsClaimed.toString(), '958000000000000000000000',
+            "Total rewards for latest period not set correctly")
+        
+    }),
+    it("Rewarding 1st reward period and withdraw the funds", async function() {
+
+        // *** Move 1 compounding period forward and check 
+
+        stakingBalance = (await contract.stakeholders.call(staker)).stakingBalance
+        initialTokenBalance = await token.balanceOf(staker)
+
+        // Move in time
+        await truffleHelpers.time.increase(truffleHelpers.time.duration.seconds(rewardPeriodDuration.muln(2)));
+
+        assert.equal(await contract.currentPeriod.call(), 2, "The period was not updated correctly")
+
+        // Claim rewards on chain
+        var stakerInfo = await contract.stakeholders.call(staker)
+
+        await contract.claimRewards(true, {from: staker})
+        
+        // Calculate the rewards off-chain
+        var updatedInitialRewardPeriod = await contract.rewardPeriods.call((await contract.getRewardPeriodsLength.call()).subn(2))
+        var latestRewardPeriod = await contract.rewardPeriods.call((await contract.getRewardPeriodsLength.call()).subn(1))
+
+        var newStakerInfo = await contract.stakeholders.call(staker)
+        var newBalance = stakerInfo.newStake.add(latestRewardPeriod.rewardPerPeriod)
+
+        // Compare balance after claiming
+        assert.equal(stakerInfo.newStake.toString(), newStakerInfo.stakingBalance.toString(),
+            "Staked amount not updated correctly")
+
+        assert.equal(initialTokenBalance.add(latestRewardPeriod.rewardPerPeriod).toString(),
+            (await token.balanceOf(staker)).toString(),
+            "Funds not withdrawn correctly")
+            
+        // Make sure last period definition and last claimed period are changed
+        assert.equal(newStakerInfo.lastClaimed.toString(), (await contract.currentPeriod.call()).toString(),
+            "Claim period not updated correctly")
+
+        assert.equal(newStakerInfo.rewardPeriod.toString(), (await contract.getRewardPeriodsLength.call()).subn(1).toString(),
+            "Reward period not updated correctly")    
+        
+        for(var i=0;i<3;i++){console.log(i, (await contract.rewardPeriods.call(i)).startDate,(await contract.rewardPeriods.call(i)).endDate)}
+        // Make sure a new reward period was added (because the total stake was updated)
+        assert.equal('3', (await contract.getRewardPeriodsLength.call()).toString(),
+            "Reward period not added")
+        
+        // Make sure the reward periods were updated correctly
+        assert.equal(updatedInitialRewardPeriod.endDate.toString(), '1',
+            "End date for initial period not set")
+        assert.equal(latestRewardPeriod.startDate.toString(), '2',
+            "Start date for latest period not set correctly")
+        
+        assert.equal(latestRewardPeriod.totalStakingBalance.toString(), '50000000000000000000',
+            "Total stake for latest period not set correctly")
+        assert.equal(latestRewardPeriod.totalWeightedStakingBalance.toString(), '50000000000000000000',
+            "Total weighted stake for latest period not set correctly")
+        assert.equal(latestRewardPeriod.totalWeightedRewardsClaimed.toString(), '958000000000000000000000',
             "Total rewards for latest period not set correctly")
         
     })

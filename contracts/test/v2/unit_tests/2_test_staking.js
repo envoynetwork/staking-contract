@@ -83,8 +83,8 @@ contract("Staking", function(accounts) {
 
         // Check if the start date of the stakeholder was updated
         assert.equal((await contract.stakeholders.call(staker)).startDate.toString(), await truffleHelpers.time.latest())
-        assert.equal((await contract.stakeholders.call(staker)).lastClaimed.toString(), await contract.currentPeriod())
-        assert.equal((await contract.stakeholders.call(staker)).rewardPeriod.toString(), await contract.currentPeriod())
+        assert.equal((await contract.stakeholders.call(staker)).lastClaimed.toString(), (await contract.currentPeriod()).addn(1))
+        assert.equal((await contract.stakeholders.call(staker)).rewardPeriod.toString(), latestRewardPeriodsIndex.subn(1).toString())
 
 
         // Check if the total staked amount of the current period was updated correctly

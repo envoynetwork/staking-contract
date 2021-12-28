@@ -151,4 +151,5 @@ function TokensWithNavigate(props) {
     let navigate = useNavigate();
     return <Tokens {...props} navigate={navigate} />
 }
+
 export default TokensWithNavigate

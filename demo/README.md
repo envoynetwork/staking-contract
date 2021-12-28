@@ -5,7 +5,7 @@
 
 This small React app will create a front end to integrate with the smart contract. Before you start, you should:
 
-- Fetch all the source code from [https://github.com/envoynetwork/staking-contract]
+- Fetch all the source code from [https://github.com/envoynetwork/staking-contract](https://github.com/envoynetwork/staking-contract) and navigate to the `demo` folder.
 - Run `npm install` to install the required packages
 - Create a `.env` file based on the `template.env` template. The Infura key is not filled in yet, this should be provided if you want to change contract state. If only read functions are applied, the key is not needed.
 - To be sure you have the latest version of the contract, run `copy_abi.sh`. It will copy the latest ABI from the Truffle project.
