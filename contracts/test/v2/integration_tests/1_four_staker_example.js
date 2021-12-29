@@ -265,10 +265,10 @@ contract("Rewarding", function(accounts) {
         console.log('period used', (await contract.stakeholders.call(staker1)).rewardPeriod.toString(), (await contract.stakeholders.call(staker2)).rewardPeriod.toString(), (await contract.stakeholders.call(staker3)).rewardPeriod.toString(), (await contract.stakeholders.call(staker4)).rewardPeriod.toString())
         console.log('last claimed', (await contract.stakeholders.call(staker1)).lastClaimed.toString(), (await contract.stakeholders.call(staker2)).lastClaimed.toString(), (await contract.stakeholders.call(staker3)).lastClaimed.toString(), (await contract.stakeholders.call(staker4)).lastClaimed.toString())
         
-        console.log('start, end, twsb, tsb, nsb, wnsb, rc')
+        console.log('start, end, tqwsb, twsb, tsb, rc, ntqwsb, ntwsb, ntsb')
         for(var i=0;i<(await contract.getRewardPeriodsLength()).toNumber();i++){
             c = await contract.rewardPeriods.call(i.toString())
-            console.log(i, c.startDate.toString(), c.endDate.toString(), web3.utils.fromWei(c.totalWeightedStakingBalance), web3.utils.fromWei(c.totalStakingBalance), web3.utils.fromWei(c.totalNewStake), web3.utils.fromWei(c.totalNewWeightedStake), web3.utils.fromWei(c.totalWeightedRewardsClaimed))
+            console.log(i, c.startDate.toString(), c.endDate.toString(), web3.utils.fromWei(c.totalQuadraticWeightedStakingBalance),web3.utils.fromWei(c.totalWeightedStakingBalance), web3.utils.fromWei(c.totalStakingBalance), web3.utils.fromWei(c.totalWeightedRewardsClaimed), web3.utils.fromWei(c.totalNewQuadraticWeightedStake), web3.utils.fromWei(c.totalNewWeightedStake), web3.utils.fromWei(c.totalNewStake))
         }
 
         await contract.claimRewards(false, {from: staker2})
@@ -286,8 +286,8 @@ contract("Rewarding", function(accounts) {
         
         // Amount to withdraw calculated with:
         // calculation3 = (await contract.calculateRewards.call(staker3))
-        // console.log('staker3: ', web3.utils.toBN(calculation3.stakeholder.stakingBalance).add(calculation3.reward).toString())
-        var amountToWithdraw = web3.utils.toBN('32236165464601054367')
+        console.log('staker3: ', web3.utils.toBN(calculation3.stakeholder.stakingBalance).add(calculation3.reward).toString())
+        var amountToWithdraw = web3.utils.toBN('32201938927377201726')
 
         // Requesting to withdrawl more than stake + rewards
         await contract.requestWithdrawal(web3.utils.toWei('50000'), true, {from: staker3})
