@@ -64,8 +64,8 @@ contract EnvoyStakingV2 is Ownable {
 
     uint public startDate; // Used to calculate how many periods have passed
     uint public maxNumberOfPeriods = 1095; // Used to cap the end date in the reward calculation
-    uint public rewardPeriodDuration= 7 days; // Length in between reward distribution
-    uint public cooldown = 1 days; // Length between withdrawal request and actual withdrawal is possible
+    uint public rewardPeriodDuration= 1 days; // Length in between reward distribution
+    uint public cooldown = 7 days; // Length between withdrawal request and actual withdrawal is possible
 
 
     string private _name = "ENVOY - STAKING"; // Used for ERC20 compatibility
