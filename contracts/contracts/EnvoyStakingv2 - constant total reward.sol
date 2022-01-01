@@ -33,11 +33,6 @@ contract EnvoyStakingV2 is Ownable {
     }
 
     /** Struct containing the state of each reward period.
-    Normally, for each period of duration `rewardPeriodDuration`,
-    a new struct is added when users interact with the contract.
-    If no interaction with the smart contract takes place,
-    the state will be used for multiple periods between
-    RewardPeriod.startDate and RewardPeriod.endDate.
     */
     struct RewardPeriod {
         uint rewardPerPeriod; // amount to distribute over stakeholders
@@ -66,17 +61,27 @@ contract EnvoyStakingV2 is Ownable {
     uint public cooldown = 7 days; // Length between withdrawal request and actual withdrawal is possible
 
 
-    string private _name = "ENVOY - STAKING"; // Used for ERC20 compatibility
-    string private _symbol = "ENV-S"; // Used for ERC20 compatibility
+    string public name = "ENVOY - STAKING"; // Used for ERC20 compatibility
+    string public symbol = "ENV-S"; // Used for ERC20 compatibility
 
-    constructor(address signatureAddress_, address stakingTokenAddress) {
+    constructor(uint maxNumberOfPeriods_, // Used to cap the end date in the reward calculation
+                uint rewardPeriodDuration_, // Length in between reward distribution
+                uint cooldown_,
+                uint rewardPerPeriod_,
+                address signatureAddress_,
+                address stakingTokenAddress) {
+        maxNumberOfPeriods = maxNumberOfPeriods_;
+        rewardPeriodDuration = rewardPeriodDuration_;
+        cooldown = cooldown_;
+
+
         signatureAddress = signatureAddress_;
         stakingToken = IERC20(stakingTokenAddress);
 
         startDate = block.timestamp;            
         
         // Initialise the first reward period in the sequence
-        rewardPeriods[0].rewardPerPeriod = 958000 * 10**18;
+        rewardPeriods[0].rewardPerPeriod = rewardPerPeriod_;
     }
 
     /**

@@ -47,7 +47,11 @@ contract("Rewarding", function(accounts) {
 
         // Make sure contracts are deployed
         token = await TestToken.new();
-        contract = await EnvoyStaking.new(signatureAddress, token.address);
+        contract = await EnvoyStaking.new(maxNumberOfPeriods = web3.utils.toBN(1095),
+            rewardPeriodDuration = web3.utils.toBN(86400),
+            cooldown = web3.utils.toBN(86400 * 7),
+            rewardPerPeriod = web3.utils.toBN('135000000000000000000000'),
+            signatureAddress, token.address);
         
         // Make sure the contract and accounts have funds
         for(let account in accounts){
