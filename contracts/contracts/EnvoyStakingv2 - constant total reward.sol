@@ -40,8 +40,6 @@ contract EnvoyStakingV2 is Ownable {
     RewardPeriod.startDate and RewardPeriod.endDate.
     */
     struct RewardPeriod {
-        // uint startDate; // First period for which this state applies
-        // uint endDate; // Last period for which this state applies
         uint rewardPerPeriod; // amount to distribute over stakeholders
         mapping (uint => uint) totalStakingBalance; // Mapping weight to stake amount of tokens staked
         mapping (uint => uint) totalNewStake; // Tokens staked in this period to be added in the next one.
