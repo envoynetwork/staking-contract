@@ -27,40 +27,28 @@ contract EnvoyStakingV2 is Ownable {
         uint weight; // The weight of the staker
         uint startDate; // The date the staker joined
         uint lastClaimed; // The date the stakeholder claimed the last rewards
-        uint rewardPeriod; // The period definition that was last used to claim
         uint releaseDate; // Date on which the stakeholder is able to withdraw the staked funds
         uint releaseAmount; // Amount to be released at the release date
         uint newStake; // Will be used to update the stake of the user in the next period
     }
 
     /** Struct containing the state of each reward period.
-    Normally, for each period of duration `rewardPeriodDuration`,
-    a new struct is added when users interact with the contract.
-    If no interaction with the smart contract takes place,
-    the state will be used for multiple periods between
-    RewardPeriod.startDate and RewardPeriod.endDate.
     */
     struct RewardPeriod {
-        uint startDate; // First period for which this state applies
-        uint endDate; // Last period for which this state applies
         uint rewardPerPeriod; // amount to distribute over stakeholders
-        // Both the staking balance and weighted staking balance are stored.
-        // The ratio of the two can be used to know the stake weighted average user level.
-        uint totalStakingBalance; // Total amount of tokens staked
-        uint totalWeightedStakingBalance; // Amount of tokens staked weighted by user weight
-        uint totalNewStake; // Tokens staked in this period to be added in the next one.
-        uint totalNewWeightedStake; // New tokens staked weighted by user weight
-        uint totalWeightedRewardsClaimed; // Total rewards claimed (used for compounded reward calculation)
+        mapping (uint => uint) totalStakingBalance; // Mapping weight to stake amount of tokens staked
+        mapping (uint => uint) totalNewStake; // Tokens staked in this period to be added in the next one.
+        mapping (uint => uint) rewardsClaimed; // Mapping weight to rewards claimed with this weight of tokens staked
     }
 
     // Keeps track of user information by mapping the stakeholder address to his state
     mapping(address => StakeHolder) public stakeholders;
 
-    //Keeps track of the different reward intervals, sequentially via a list
-    RewardPeriod[] public rewardPeriods;
+    //Keeps track of the different reward intervals, sequentially
+    mapping (uint => RewardPeriod) public rewardPeriods;
 
-    // Keeps track of totalStake per period
-    mapping(uint => uint) public totalWeightedStake;
+    uint public maxRewardPeriod; //Latest reward period 
+    uint public maxWeight; // Highest weight observed in the contract
     
     // Address used to verify users updating weight
     address public signatureAddress;
@@ -68,40 +56,86 @@ contract EnvoyStakingV2 is Ownable {
     IERC20 public stakingToken;
 
     uint public startDate; // Used to calculate how many periods have passed
-    uint public endDate; // Used to cap the end date in the reward calculation
-    uint public rewardPeriodDuration= 7 days; // Length in between reward distribution
+    uint public maxNumberOfPeriods = 1095; // Used to cap the end date in the reward calculation
+    uint public rewardPeriodDuration= 1 days; // Length in between reward distribution
     uint public cooldown = 7 days; // Length between withdrawal request and actual withdrawal is possible
 
-    uint public maxWeight; // Highest weight observed in the contract
 
-    string private _name = "ENVOY - STAKING"; // Used for ERC20 compatibility
-    string private _symbol = "ENV-S"; // Used for ERC20 compatibility
+    string public name = "ENVOY - STAKING"; // Used for ERC20 compatibility
+    string public symbol = "ENV-S"; // Used for ERC20 compatibility
 
-    constructor(address signatureAddress_, address stakingTokenAddress) {
+    constructor(uint maxNumberOfPeriods_, // Used to cap the end date in the reward calculation
+                uint rewardPeriodDuration_, // Length in between reward distribution
+                uint cooldown_,
+                uint rewardPerPeriod_,
+                address signatureAddress_,
+                address stakingTokenAddress) {
+        maxNumberOfPeriods = maxNumberOfPeriods_;
+        rewardPeriodDuration = rewardPeriodDuration_;
+        cooldown = cooldown_;
+
+
         signatureAddress = signatureAddress_;
         stakingToken = IERC20(stakingTokenAddress);
 
         startDate = block.timestamp;            
         
         // Initialise the first reward period in the sequence
-        RewardPeriod memory rp = RewardPeriod({
-            startDate: 0,
-            endDate: 0,
-            rewardPerPeriod: 958000 * 10**18,
-            totalStakingBalance: 0,
-            totalWeightedStakingBalance: 0,
-            totalNewStake: 0,
-            totalNewWeightedStake: 0,
-            totalWeightedRewardsClaimed: 0
-        });
-        rewardPeriods.push(rp);
+        rewardPeriods[0].rewardPerPeriod = rewardPerPeriod_;
     }
 
     /**
-    Easy getter to get the index of the latest reward period in the list.
-    */
-    function getRewardPeriodsLength() public view returns (uint length) {
-        return rewardPeriods.length;
+     * Calculates the staking balance for a certain period.
+     * Can provide the current balance or balance to be added next period.
+     * Also weighted (or multiple weighted) balances can be returned
+     * @param period The period for which to call the balance
+     * @param weightExponent How many times does the stake need to be multiplied with the weight?
+     * @param newStake Does the current value or new value need to be displayed?
+     * @return totalStaking the total amount staked for the parameters.
+     */
+    function totalStakingBalance(uint period, uint weightExponent, bool newStake) public view returns (uint totalStaking){
+        for(uint i = 0; i <= maxWeight; i++){
+            if(newStake){
+                totalStaking += rewardPeriods[period].totalNewStake[i] * (i+1) ** weightExponent;
+            } else
+            {
+                totalStaking += rewardPeriods[period].totalStakingBalance[i] * (i+1) ** weightExponent;
+            }
+        }
+    }
+    
+    /**
+     * Calculates the total rewards for a period.
+     * @param period the period to calculate rewards for
+     * @param weightExponent How many times does the stake need to be multiplied with the weight?
+     * @param claimed True for claimed rewards, false for unclaimed rewards (results sum to the total reward)
+     * @return totalRewards the total rewards
+     */
+    function rewards(uint period, uint weightExponent, bool claimed) public view returns (uint totalRewards){
+        for(uint i = 0; i <= maxWeight; i++){
+            if(claimed){
+                totalRewards += rewardPeriods[period].rewardsClaimed[i] * (i+1) ** weightExponent;
+            } else {
+                totalRewards += (rewardPeriods[period].rewardsClaimed[i] - rewardPeriods[period].rewardsClaimed[i])
+                     * (i+1) ** weightExponent;
+            }
+        }
+    }
+    
+    function handleNewPeriod() internal {
+        // Close previous periods if in the past and create a new one
+        while(currentPeriod()>maxRewardPeriod){
+            maxRewardPeriod++;
+            // rewardPeriods[maxRewardPeriod].startDate = start;
+            rewardPeriods[maxRewardPeriod].rewardPerPeriod = rewardPeriods[maxRewardPeriod-1].rewardPerPeriod;
+            uint twsb = totalStakingBalance(maxRewardPeriod-1, 1, false);
+            for(uint i = 0; i<=maxWeight;i++){
+                rewardPeriods[maxRewardPeriod].totalStakingBalance[i] = rewardPeriods[maxRewardPeriod-1].totalStakingBalance[i] + rewardPeriods[maxRewardPeriod-1].totalNewStake[i];
+                if(twsb > 0){
+                    rewardPeriods[maxRewardPeriod].totalStakingBalance[i] += rewardPeriods[maxRewardPeriod-1].rewardPerPeriod*rewardPeriods[maxRewardPeriod-1].totalStakingBalance[i]*(i+1) / twsb;
+                }
+            }
+        }
     }
 
     /**
@@ -111,6 +145,9 @@ contract EnvoyStakingV2 is Ownable {
      *  is allowed to update his weight.
      */
     function updateWeight(uint weight_, bytes memory signature) public{
+        // Close previous period if in the past and create a new one, else update the latest one.
+        handleNewPeriod();
+    
         address sender = _msgSender();
 
         // Verify the stakeholder was allowed to update stake
@@ -121,30 +158,13 @@ contract EnvoyStakingV2 is Ownable {
 
         // Claim previous rewards with old weight
         claimRewards(false);
-    
+
         // Update the total weighted amount of the current period.
-        // Close previous period if in the past and create a new one, else update the latest one.
-        if (rewardPeriods[rewardPeriods.length - 1].startDate < currentPeriod()){
-            rewardPeriods[rewardPeriods.length - 1].endDate = currentPeriod() - 1;
-            RewardPeriod memory rp = RewardPeriod({
-                startDate: currentPeriod(),
-                endDate: 0,
-                rewardPerPeriod: rewardPeriods[rewardPeriods.length - 1].rewardPerPeriod,
-                totalStakingBalance: rewardPeriods[rewardPeriods.length - 1].totalStakingBalance + rewardPeriods[rewardPeriods.length - 1].totalNewStake,
-                totalWeightedStakingBalance: rewardPeriods[rewardPeriods.length - 1].totalWeightedStakingBalance
-                    + rewardPeriods[rewardPeriods.length - 1].totalNewWeightedStake
-                    + (weight_ - stakeholder.weight)*(stakeholder.newStake + stakeholder.stakingBalance),
-                totalNewStake: 0,
-                totalNewWeightedStake: 0,
-                totalWeightedRewardsClaimed: 0
-            });
-
-            rewardPeriods.push(rp);
-        } else {
-            rewardPeriods[rewardPeriods.length - 1].totalWeightedStakingBalance += (weight_ - stakeholder.weight)*stakeholder.stakingBalance;
-            rewardPeriods[rewardPeriods.length - 1].totalNewWeightedStake += (weight_ - stakeholder.weight)*stakeholder.newStake;
-        }
-
+        rewardPeriods[maxRewardPeriod].totalStakingBalance[stakeholder.weight] -= stakeholder.stakingBalance;
+        rewardPeriods[maxRewardPeriod].totalStakingBalance[weight_] += stakeholder.stakingBalance;
+        rewardPeriods[maxRewardPeriod].totalNewStake[stakeholder.weight] -= stakeholder.newStake;
+        rewardPeriods[maxRewardPeriod].totalNewStake[weight_] += stakeholder.newStake;
+        
         // Finally, set the new weight
         stakeholder.weight = weight_;
 
@@ -160,6 +180,8 @@ contract EnvoyStakingV2 is Ownable {
      * @param amount The amount to stake
      */
     function stake(uint amount) public {
+        // Close previous period if in the past and create a new one, else update the latest one.
+        handleNewPeriod();
         address sender = _msgSender();
 
         require(amount > 0, "Staking requires positive value");
@@ -174,8 +196,7 @@ contract EnvoyStakingV2 is Ownable {
 
         if(stakeholder.startDate == 0) {
             stakeholder.startDate = block.timestamp;
-            stakeholder.lastClaimed = currentPeriod()+1;
-            stakeholder.rewardPeriod = rewardPeriods.length - 1;
+            stakeholder.lastClaimed = currentPeriod();
         }
 
         // Claim previous rewards with old staked value
@@ -186,26 +207,9 @@ contract EnvoyStakingV2 is Ownable {
         stakeholder.newStake = amount;
 
         // Update the totals
-        // Close previous period if in the past and create a new one, else update the latest one.
-        if (rewardPeriods[rewardPeriods.length - 1].startDate < currentPeriod()){
-            rewardPeriods[rewardPeriods.length - 1].endDate = currentPeriod() - 1;
-            RewardPeriod memory rp = RewardPeriod({
-                startDate: currentPeriod(),
-                endDate: currentPeriod(),
-                rewardPerPeriod: rewardPeriods[rewardPeriods.length - 1].rewardPerPeriod,
-                totalStakingBalance: rewardPeriods[rewardPeriods.length - 1].totalStakingBalance + rewardPeriods[rewardPeriods.length - 1].totalNewStake ,
-                totalWeightedStakingBalance: rewardPeriods[rewardPeriods.length - 1].totalWeightedStakingBalance + rewardPeriods[rewardPeriods.length - 1].totalNewWeightedStake,
-                totalNewStake: amount,
-                totalNewWeightedStake: amount*(stakeholder.weight+1),
-                totalWeightedRewardsClaimed: 0
-            });
-            rewardPeriods.push(rp);
-        } else {
-            rewardPeriods[rewardPeriods.length - 1].endDate = currentPeriod();
-            rewardPeriods[rewardPeriods.length - 1].totalNewStake += amount;
-            rewardPeriods[rewardPeriods.length - 1].totalNewWeightedStake += amount*(stakeholder.weight+1);
-        }
-
+        // rewardPeriods[maxRewardPeriod].endDate = currentPeriod();
+        rewardPeriods[maxRewardPeriod].totalNewStake[stakeholder.weight] += amount;
+        
         emit Staking(sender, amount);
 
     }
@@ -223,6 +227,7 @@ contract EnvoyStakingV2 is Ownable {
       even when the reward calculations encounters a breaking bug.
      */
     function requestWithdrawal(uint amount, bool claimRewardsFirst) public {
+        handleNewPeriod();
         address sender = _msgSender();
         StakeHolder storage stakeholder = stakeholders[sender];
         
@@ -244,7 +249,8 @@ contract EnvoyStakingV2 is Ownable {
 
         stakeholder.releaseDate = block.timestamp + cooldown;
         stakeholder.releaseAmount = amount;
-        updateTotalStakingBalance(amount, stakeholder.weight+1, false);
+        rewardPeriods[maxRewardPeriod].totalStakingBalance[stakeholder.weight] -= amount;
+
         stakeholder.stakingBalance -= amount;
     }
 
@@ -273,13 +279,13 @@ contract EnvoyStakingV2 is Ownable {
      *  if false, add the rewards to the staking balance of the stakeholder.
      */
     function claimRewards(bool withdrawl) public {
+        // If necessary, close the current latest period and create a new latest.
+        // Updated staking balance before calculation.
+        handleNewPeriod();
 
         address stakeholderAddress = _msgSender();
         StakeHolder storage stakeholder = stakeholders[stakeholderAddress];
 
-        // If necessary, close the current latest period and create a new latest.
-        // Updated staking balance before calculation.
-        updateNewStakePreviousPeriod();
 
         // Number of periods for which rewards will be paid
         // Current period is not in the interval as it is not finished.
@@ -305,31 +311,14 @@ contract EnvoyStakingV2 is Ownable {
             stakingToken.transfer(_msgSender(), reward);
         } else {
             stakeholder.stakingBalance += reward;
-            updateTotalStakingBalance(reward, stakeholder.weight+1, true);
         }
 
         // If necessary, close the current latest period and create a new latest.
         // Add the weighted rewards to the totalWeightedRewardsClaimed values.
-        if (rewardPeriods[rewardPeriods.length - 1].startDate < currentPeriod()){
-            rewardPeriods[rewardPeriods.length - 1].endDate = currentPeriod() - 1;
-            RewardPeriod memory rp = RewardPeriod({
-                startDate: currentPeriod(),
-                endDate: 0,
-                rewardPerPeriod: rewardPeriods[rewardPeriods.length - 1].rewardPerPeriod,
-                totalStakingBalance: rewardPeriods[rewardPeriods.length - 1].totalStakingBalance + rewardPeriods[rewardPeriods.length - 1].totalNewStake,
-                totalWeightedStakingBalance: rewardPeriods[rewardPeriods.length - 1].totalWeightedStakingBalance + rewardPeriods[rewardPeriods.length - 1].totalNewWeightedStake,
-                totalNewStake: 0,
-                totalNewWeightedStake: 0,
-                totalWeightedRewardsClaimed: reward*(stakeholder.weight+1)
-            });
-            rewardPeriods.push(rp);
-        } else {
-            rewardPeriods[rewardPeriods.length - 1].totalWeightedRewardsClaimed += reward*(stakeholder.weight+1);
-        }
+        rewardPeriods[maxRewardPeriod].rewardsClaimed[stakeholder.weight] += reward;
 
         // Update last claimed and reward definition to use in next calculation
         stakeholder.lastClaimed = currentPeriod();
-        stakeholder.rewardPeriod = rewardPeriods.length - 1;
 
         emit Rewarding(stakeholderAddress, reward, n);
 
@@ -339,23 +328,21 @@ contract EnvoyStakingV2 is Ownable {
      * Calculate the rewards owed to a stakeholder.
      * The interest will be calculated based on:
      *  - The reward to divide in this period
-     *  - The the relative stake of the stakeholder
+     *  - The the relative stake of the stakeholder (taking previous rewards in account)
      *  - The time the stakeholder has been staking.
-     * The formula of compounding interest is applied, meaning rewards on rewards are calculated..
+     * The formula of compounding interest is applied, meaning rewards on rewards are calculated.
      * @param stakeholderAddress The address to calculate rewards for
      * @return reward The rewards of the stakeholder for previous periods.
      * @return stakeholder The new object containing stakeholder state
      */
-    function calculateRewards(address stakeholderAddress) public  returns(uint reward, StakeHolder memory stakeholder) {
+    function calculateRewards(address stakeholderAddress) public view returns(uint reward, StakeHolder memory stakeholder) {
 
         stakeholder = stakeholders[stakeholderAddress];
         
-        // Number of accounts for which rewards will be paid
+        // Number of periods for which rewards will be paid
         // lastClaimed is included, currentPeriod not.
         uint n = (currentPeriod() > stakeholder.lastClaimed) ? 
             currentPeriod() - stakeholder.lastClaimed : 0;
-        emit Test('currentperiod', currentPeriod());
-        emit Test('n', n);
 
         // If no stake is present or no time passed since last claim, 0 can be returned.
         if ((stakeholder.stakingBalance == 0 && stakeholder.newStake == 0 ) || n == 0){
@@ -363,100 +350,29 @@ contract EnvoyStakingV2 is Ownable {
         }
 
         uint s = stakeholder.stakingBalance;
-//        emit Test('initialStakingBalance', s);
-      
-        // Calculate the rewards that are net yet claimed at the start point.
-        // Unclaimed rewards are implicitly staked and need to be included in weight calculation.
-        // Calculation:
-        // - loop over all periods before the stakeholder claimed.
-        // - Calculate the total weighted rewards per period (rewardsPerPeriod*totalWeightedStake/totalStake)
-        // - Subtract the weighted claimed rewards from the next period, these are included in totalWeightedStake from the next period
-        uint unclaimedWeightedRewards = 0;
-        uint i = 0;
-        while(i < rewardPeriods.length && rewardPeriods[i].startDate < stakeholder.lastClaimed){
-            if(i < rewardPeriods.length-1){
-                // No rewards is distributed if nothing was staked
-                if(rewardPeriods[i].totalStakingBalance > 0){
-                    uint end = (rewardPeriods[i].endDate == 0 || rewardPeriods[i].endDate > stakeholder.lastClaimed) ?
-                    stakeholder.lastClaimed + 1: rewardPeriods[i].endDate + 1;
-                    unclaimedWeightedRewards += (end - rewardPeriods[i].startDate)
-                        * rewardPeriods[i].rewardPerPeriod
-                        * rewardPeriods[i].totalWeightedStakingBalance/rewardPeriods[i].totalStakingBalance;
-                }
-                // In period 0, no rewards are ever provided so can be skipped.
-                unclaimedWeightedRewards -= rewardPeriods[i+1].totalWeightedRewardsClaimed;
-            }
-            i++;
-        }
-        emit Test('initial remaining reward', unclaimedWeightedRewards);
-        emit Test('i for continuation', i);
+
         // Loop over all following intervals to calculate the rewards for following periods.
-        for (uint p = i; p < rewardPeriods.length; p++) {
-            // Make sure the calculation only starts 
-            //if( (p==0) || (stakeholder.lastClaimed > rewardPeriods[p].endDate) && (rewardPeriods[p].endDate > 0)){emit Test('skipping', p);continue;} else {emit Test('running', p);}
+        for (uint p = stakeholder.lastClaimed; p < (maxRewardPeriod > maxNumberOfPeriods ? maxNumberOfPeriods : maxRewardPeriod); p++) {
 
-            // Handle the first start if it is not equal to the start of the reward period
-            uint start = rewardPeriods[p].startDate < stakeholder.lastClaimed ?
-                stakeholder.lastClaimed : rewardPeriods[p].startDate;
-            emit Test('start', start);
-
-            // Handle stop if end date is not defined (last reward period), no rewards beyond the current period
-            uint end = rewardPeriods[p].endDate == 0 || rewardPeriods[p].endDate >= currentPeriod() ?
-                currentPeriod() : rewardPeriods[p].endDate + 1;
-            emit Test('end', end);
-
-            if(start >= end){emit Test('skipping', p);continue;}
-
-            uint tsb = rewardPeriods[p].totalStakingBalance;
-            uint twsb = rewardPeriods[p].totalWeightedStakingBalance;
-
-            // Store the denominator of the share which is the sum of:
-            // - the total weighted staked amounts of this period
-            // - the total weighted unclaimed rewards of the all previous periods,
-            //   which are implicitly staked again.
-            uint rewardPerStakeDenominator = twsb + unclaimedWeightedRewards;
-            emit Test('total stake', tsb);
-            emit Test('total w stake', twsb);
-            emit Test('denominator', rewardPerStakeDenominator);
-
-            // Update unclaimed rewards for next iteration (same logic as before)
-            if(tsb > 0){
-                unclaimedWeightedRewards += (end-start)*rewardPeriods[p].rewardPerPeriod*twsb/tsb;
-                emit Test('adding', (end-start)*rewardPeriods[p].rewardPerPeriod*twsb/tsb);
-            }
-            if(p < rewardPeriods.length - 1){
-                unclaimedWeightedRewards -= rewardPeriods[p+1].totalWeightedRewardsClaimed;
-            }
-            emit Test('new unclaimed', unclaimedWeightedRewards);
-
-            // If the stake was updated, handle 1 period with the old stake
-            if(stakeholder.newStake > 0){
-                // Reward last period with old weight and add staking balance
-                s += (s+stakeholder.newStake)*(stakeholder.weight+1) * rewardPeriods[p].rewardPerPeriod
-                    / rewardPerStakeDenominator + stakeholder.newStake;
-                emit Test('set new stake', stakeholder.newStake);
-                
-                // Increase start to handle following periods with new stake
-                start++;
-
-                stakeholder.stakingBalance += stakeholder.newStake;
-                stakeholder.newStake = 0;
-
-            }
+            uint twsb = totalStakingBalance(p,1,false);
 
             // Update the new stake
-            s += (end-start)*s*(stakeholder.weight+1) * rewardPeriods[p].rewardPerPeriod
-                / rewardPerStakeDenominator;
+            if(twsb > 0){
+                s += s*(stakeholder.weight+1) * rewardPeriods[p].rewardPerPeriod / twsb;
+            }
 
-            emit Test('new stake', s);
-            
+            if(stakeholder.newStake > 0){
+                // After reward last period with old stake, add it to balance
+                s += stakeholder.newStake;
+                stakeholder.stakingBalance += stakeholder.newStake;
+                stakeholder.newStake = 0;
+            }            
         }
 
         // Final reward value
         reward = s - stakeholder.stakingBalance;
     
     }
-
 
 
     /**
@@ -483,8 +399,8 @@ contract EnvoyStakingV2 is Ownable {
         address sender = _msgSender();
         
         // Make sure the staked amounts rewards are never withdrawn
-        if(amount > stakingToken.balanceOf(address(this)) - (rewardPeriods[rewardPeriods.length - 1].totalStakingBalance)){
-            amount = stakingToken.balanceOf(address(this)) - (rewardPeriods[rewardPeriods.length - 1].totalStakingBalance);
+        if(amount > stakingToken.balanceOf(address(this)) - (totalStakingBalance(maxRewardPeriod,0,false))){
+            amount = stakingToken.balanceOf(address(this)) - (totalStakingBalance(maxRewardPeriod,0,false));
         }
 
         stakingToken.transfer(sender, amount);
@@ -499,37 +415,12 @@ contract EnvoyStakingV2 is Ownable {
     }
 
     /**
-     * Updates the amount of decimals used for the interest rate.
-     * After this accuracy, rounding will be applied
-     * and approximations will stack over long time periods.
-     * @param value The number of decimals. NOT the number to devide with.
-     *  e.g.: to use 3 decimals, input 3 (10**3) and not 1000.
+     * @param value the new end date after which rewards will stop
      */
-    // function updateInterestDecimals(uint value) public onlyOwner{
-    //     // First adjust interest rates to new decimals.
-    //     // Make sure no precision is lost!
-    //     value = 10 ** value;
-    //     baseInterest = baseInterest * value / interestDecimals;
-    //     extraInterest = extraInterest * value / interestDecimals;
-    //     interestDecimals = value;
-    //     emit ConfigUpdate('Decimals', value);
-    // }
-
-    // function updateBaseInterest(uint value) public onlyOwner{
-    //     baseInterest = value;
-    //     emit ConfigUpdate('Base interest', value);
-    // }
-
-    // function updateExtraInterest(uint value) public onlyOwner{
-    //     extraInterest = value;
-    //     emit ConfigUpdate('Extra interest', value);
-    // }
-
-    // function updateRewardPeriod(uint value) public onlyOwner{
-    //     rewardPeriodDuration = value;
-    //     emit ConfigUpdate('Interest period', value);
-    // }
-
+    function updateMaxNumberOfPeriods(uint value) public onlyOwner {
+        maxNumberOfPeriods = value; 
+        emit ConfigUpdate('Max number of periods', value);
+    }
 
     /**
      * Updates the cooldown period.
@@ -545,23 +436,8 @@ contract EnvoyStakingV2 is Ownable {
      * @param value The new reward per period
      */
     function updateRewardPerPeriod(uint value) public onlyOwner{
-        updateNewStakePreviousPeriod();
-        if (rewardPeriods[rewardPeriods.length - 1].startDate < currentPeriod()){
-            rewardPeriods[rewardPeriods.length - 1].endDate = currentPeriod() -  1;
-            RewardPeriod memory rp = RewardPeriod({
-                startDate: currentPeriod(),
-                endDate: 0,
-                rewardPerPeriod: value,
-                totalStakingBalance: rewardPeriods[rewardPeriods.length - 1].totalStakingBalance + rewardPeriods[rewardPeriods.length - 1].totalNewStake,
-                totalWeightedStakingBalance: rewardPeriods[rewardPeriods.length - 1].totalWeightedStakingBalance + rewardPeriods[rewardPeriods.length - 1].totalNewWeightedStake,
-                totalNewStake: 0,
-                totalNewWeightedStake: 0,
-                totalWeightedRewardsClaimed: 0
-            });
-            rewardPeriods.push(rp);
-        } else {
-            rewardPeriods[rewardPeriods.length - 1].rewardPerPeriod = value;
-        }        
+        handleNewPeriod();       
+        rewardPeriods[maxRewardPeriod].rewardPerPeriod = value;
         emit ConfigUpdate('Reward per period', value);
     }
 
@@ -572,127 +448,5 @@ contract EnvoyStakingV2 is Ownable {
     function currentPeriod() public view returns(uint period){
         period = (block.timestamp - startDate) / rewardPeriodDuration;
     }
-
-    // function totalUnclaimedWeightedRewards(uint period) public view returns(uint rewards){
-
-    //     if(rewardPeriods.length <= 2){return 0;}
-    //     //
-    //     period = (period <= currentPeriod()) ? period : currentPeriod();
-    //     uint i = 0;
-    //     while(i < rewardPeriods.length && rewardPeriods[i].startDate < period){
-    //         // No rewards are unclaimed if there were no stakers for a period
-    //         if(rewardPeriods[i].totalStakingBalance > 0){
-    //             uint end = rewardPeriods[i].endDate == 0?
-    //                 period : rewardPeriods[i].endDate + 1;
-    //             uint start = rewardPeriods[i].startDate;
-    //             if(i < rewardPeriods.length-2){
-    //                 rewards += (end - rewardPeriods[i].startDate)
-    //                     * rewardPeriods[i].rewardPerPeriod
-    //                     * rewardPeriods[i].totalWeightedStakingBalance/rewardPeriods[i].totalStakingBalance
-    //                     - rewardPeriods[i+1].totalWeightedRewardsClaimed;
-    //             } 
-    //         }
-    //         i++;
-    //     }
-
-        // while(i < rewardPeriods.length && rewardPeriods[i].endDate <= period){ // endDate = 0 is implicitly handled
-        //     // No rewards are unclaimed if there were no stakers for a period
-        //     if(rewardPeriods[i].totalStakingBalance > 0){
-        //         // Loop over completed periods with start and end date
-        //         if(i < rewardPeriods.length-2 &&){
-        //             rewards += (rewardPeriods[i].endDate + 1 - rewardPeriods[i].startDate)
-        //                 * rewardPeriods[i].rewardPerPeriod
-        //                 * rewardPeriods[i].totalWeightedStakingBalance/rewardPeriods[i].totalStakingBalance
-        //                 - rewardPeriods[i+1].totalWeightedRewardsClaimed;
-        //         } 
-        //         else {
-        //             // Last period might be finished, while the state is not updated yet
-        //             uint start;
-        //             if (rewardPeriods[i].endDate > 0){
-        //                 rewards += (rewardPeriods[i].endDate + 1 - rewardPeriods[i].startDate)
-        //                     * rewardPeriods[i].rewardPerPeriod
-        //                     * rewardPeriods[i].totalWeightedStakingBalance/rewardPeriods[i].totalStakingBalance;
-        //                 start = rewardPeriods[i].endDate + 1;                
-        //             } else {
-        //                 start = rewardPeriods[i].startDate;
-        //             }
-                    
-        //             rewards += (period - start) * rewardPeriods[i].rewardPerPeriod
-        //             * rewardPeriods[period].totalWeightedStakingBalance/rewardPeriods[period].totalStakingBalance;
-        //         }
-        //     }
-        //     i++;
-        // }
-    //}
-
-    /** Update this period total stake (or define a new one when it already exists).
-    * @param amount The new staked amount
-    * @param weight the weight of the staker
-    * @param increase wetter to increase or decrease the stake.
-    */
-    function updateTotalStakingBalance(uint amount, uint weight, bool increase) internal {
-
-        updateNewStakePreviousPeriod();
-
-        uint newTotalStake = rewardPeriods[rewardPeriods.length - 1].totalStakingBalance;
-        uint newTotalWeightedStake = rewardPeriods[rewardPeriods.length - 1].totalWeightedStakingBalance;
-        if(increase){
-            newTotalStake += amount;
-            newTotalWeightedStake += amount * weight;
-        } else{
-            newTotalStake -= amount;
-            newTotalWeightedStake -= amount * weight;
-        }
-        
-        // Create new latest period if necessary and update stake.
-        if (rewardPeriods[rewardPeriods.length - 1].startDate < currentPeriod()){
-            // Close previous period
-            rewardPeriods[rewardPeriods.length - 1].endDate = currentPeriod() - 1;
-            RewardPeriod memory rp = RewardPeriod({
-                startDate: currentPeriod(),
-                endDate: 0,
-                rewardPerPeriod: rewardPeriods[rewardPeriods.length - 1].rewardPerPeriod,
-                totalStakingBalance: rewardPeriods[rewardPeriods.length - 1].totalNewStake + newTotalStake,
-                totalWeightedStakingBalance: rewardPeriods[rewardPeriods.length - 1].totalNewWeightedStake + newTotalWeightedStake,
-                totalNewStake: 0,
-                totalNewWeightedStake: 0,
-                totalWeightedRewardsClaimed: 0
-            });
-            rewardPeriods.push(rp);
-        } else {
-            rewardPeriods[rewardPeriods.length - 1].totalStakingBalance = newTotalStake;
-            rewardPeriods[rewardPeriods.length - 1].totalWeightedStakingBalance = newTotalWeightedStake;
-        }
-    }
-
-    /**
-     * @dev Function to add new stake to the total staking balance with a period delay.
-     * New stake is not added immediately, as the current period still uses the old balance.
-     * If the endDate of a period is set already, a new period will be added with:
-     * - the endDate of the last period increased by 1 as startDate
-     * - 0 as endDate
-     * - the totalNewStake and totalNewWeightedStake added to the normal fields.
-     *   from this period and onwards, they will be taken into account for the calculaions.
-     */
-    function updateNewStakePreviousPeriod() internal {
-        emit Test('Adjusting new stake for period', rewardPeriods.length - 1);
-        // Only update when the last period is closed (enddate > 0) we we moved in time (currentPeriod > endDate)
-        // Exception for the first period, here the endDate does not to be bigger. First condition is dropped here.
-        if (((rewardPeriods[rewardPeriods.length - 1].endDate > 0) || (rewardPeriods[rewardPeriods.length - 1].startDate == 0) )
-            && (rewardPeriods[rewardPeriods.length - 1].endDate < currentPeriod())){
-            emit Test('closing enddate', rewardPeriods[rewardPeriods.length - 1].endDate);
-            RewardPeriod memory rp = RewardPeriod({
-                startDate: rewardPeriods[rewardPeriods.length - 1].endDate+1,
-                endDate: 0,
-                rewardPerPeriod: rewardPeriods[rewardPeriods.length - 1].rewardPerPeriod,
-                totalStakingBalance: rewardPeriods[rewardPeriods.length - 1].totalStakingBalance + rewardPeriods[rewardPeriods.length - 1].totalNewStake,
-                totalWeightedStakingBalance: rewardPeriods[rewardPeriods.length - 1].totalWeightedStakingBalance + rewardPeriods[rewardPeriods.length - 1].totalNewWeightedStake,
-                totalNewStake: 0,
-                totalNewWeightedStake: 0,
-                totalWeightedRewardsClaimed: 0
-            });
-            rewardPeriods.push(rp);
-        }        
-    }
-
+ 
 }

@@ -17,5 +17,11 @@ module.exports = async function (deployer, network, accounts) {
     const token = await TestToken.deployed()
     tokenAddress = token.address
   }
-  await deployer.deploy(EnvoyStaking, signatureAddress, tokenAddress);    
+  await deployer.deploy(EnvoyStaking,
+                        maxNumberOfPeriods = web3.utils.toBN(1095),
+                        rewardPeriodDuration = web3.utils.toBN(86400),
+                        cooldown = web3.utils.toBN(86400 * 7),
+                        rewardPerPeriod = web3.utils.toBN('135000000000000000000000'),
+                        signatureAddress,
+                        tokenAddress);    
 };
